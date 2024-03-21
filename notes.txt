@@ -13,3 +13,17 @@ sat min = 0
 sat max = 255
 val min = 0
 val max = 255
+
+HSV -road
+h min = 0
+h max = 36
+s min = 0
+s max = 54
+v min = 62
+v max = 110
+
+warp points -road
+wt = 118
+ht = 175
+wb = 66
+hb = 232
