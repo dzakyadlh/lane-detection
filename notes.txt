@@ -1,0 +1,15 @@
+HSV -lane
+h min = 38
+h max = 90
+sat min = 166
+sat max = 255
+val min = 74
+val max = 255
+
+HSV -paddy
+h min = 0
+h max = 36
+sat min = 0
+sat max = 255
+val min = 0
+val max = 255
