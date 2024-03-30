@@ -29,13 +29,13 @@ initialize_trackbar()
 
 while True:
     # by image
-    # img = cv.imread('./assets/images/sawah1.jpg')
+    img = cv.imread('./assets/images/sawah1.jpg')
     # by video
-    cap = cv.VideoCapture("./assets/videos/road_vid.mp4")
-    ret, img = cap.read()
-    if not ret:
-        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        continue
+    # cap = cv.VideoCapture("./assets/videos/road_vid.mp4")
+    # ret, img = cap.read()
+    # if not ret:
+    #     cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+    #     continue
 
     img = cv.resize(img, (480, 240))
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
