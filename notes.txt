@@ -16,9 +16,9 @@ val max = 255
 
 HSV -road
 h min = 0
-h max = 36
+h max = 179
 s min = 0
-s max = 54
+s max = 75
 v min = 62
 v max = 110
 

@@ -1,6 +1,5 @@
 import numpy as np
 import cv2 as cv
-import matplotlib as plt
 
 # Function for thresholding the image
 def thresholding(img, h_min, s_min, v_min, h_max, s_max, v_max):
@@ -11,10 +10,13 @@ def thresholding(img, h_min, s_min, v_min, h_max, s_max, v_max):
     return mask
 
 # Function to warp image into a bird-eye view
-def warp_img(img, points, width, height):
+def warp_img(img, points, width, height, inverse = False):
     pt1 = np.float32(points)
     pt2 = np.float32([[0, 0], [width, 0], [0, height], [width, height]])
-    matrix = cv.getPerspectiveTransform(pt1, pt2)
+    if inverse:
+        matrix = cv.getPerspectiveTransform(pt2, pt1)
+    else:
+        matrix = cv.getPerspectiveTransform(pt1, pt2)
     warped = cv.warpPerspective(img, matrix, (width, height))
     return warped
 
@@ -33,6 +35,11 @@ def get_trackbar_points(w=480, h=240):
     height_bottom = cv.getTrackbarPos('Height Bottom', 'Points Trackbars')
     points = np.float32([(width_top, height_top), (w-width_top, height_top), (width_bottom, height_bottom), (w-width_bottom, height_bottom)])
     return points
+
+def draw_points(img, points):
+    for x in range(4):
+        cv.circle(img,(int(points[x][0]),int(points[x][1])),15,(0,0,255),cv.FILLED)
+    return img
 
 # Function to calculate pixel summation on left and right sides of the robot
 def calculate_pixel_sum(image):
@@ -53,7 +60,7 @@ def get_histogram(image, min_percentage = 0.1, display = False, region = 1):
     if region == 1:
         hist_val = np.sum(image, axis=0)
     else:
-        hist_val = np.sum(image[image.shape[0]//region:,:], axis=0)
+        hist_val = np.sum(image[int(image.shape[0]//region):,:], axis=0)
 
     max_val = np.max(hist_val)
     min_val = min_percentage*max_val
@@ -65,11 +72,41 @@ def get_histogram(image, min_percentage = 0.1, display = False, region = 1):
     if display:
         img_hist = np.zeros((image.shape[0], image.shape[1], 3), np.uint8)
         for i, intensity in enumerate(hist_val):
-            cv.line(img_hist, (i, image.shape[0]), (i, image.shape[0]-intensity//255), (255, 0, 255), 1)
-            cv.circle(img_hist, (base_point, image.shape[0]), 20, (0, 0, 255), cv.FILLED)
+            cv.line(img_hist, (i, image.shape[0]), (i, image.shape[0]-intensity//255//region), (255, 0, 255), 1)
+            cv.circle(img_hist, (base_point, image.shape[0]), 20, (0, 255, 0), cv.FILLED)
         return base_point, img_hist
     return base_point
 
+def stackImages(scale,imgArray):
+    rows = len(imgArray)
+    cols = len(imgArray[0])
+    rowsAvailable = isinstance(imgArray[0], list)
+    width = imgArray[0][0].shape[1]
+    height = imgArray[0][0].shape[0]
+    if rowsAvailable:
+        for x in range ( 0, rows):
+            for y in range(0, cols):
+                if imgArray[x][y].shape[:2] == imgArray[0][0].shape [:2]:
+                    imgArray[x][y] = cv.resize(imgArray[x][y], (0, 0), None, scale, scale)
+                else:
+                    imgArray[x][y] = cv.resize(imgArray[x][y], (imgArray[0][0].shape[1], imgArray[0][0].shape[0]), None, scale, scale)
+                if len(imgArray[x][y].shape) == 2: imgArray[x][y]= cv.cvtColor( imgArray[x][y], cv.COLOR_GRAY2BGR)
+        imageBlank = np.zeros((height, width, 3), np.uint8)
+        hor = [imageBlank]*rows
+        hor_con = [imageBlank]*rows
+        for x in range(0, rows):
+            hor[x] = np.hstack(imgArray[x])
+        ver = np.vstack(hor)
+    else:
+        for x in range(0, rows):
+            if imgArray[x].shape[:2] == imgArray[0].shape[:2]:
+                imgArray[x] = cv.resize(imgArray[x], (0, 0), None, scale, scale)
+            else:
+                imgArray[x] = cv.resize(imgArray[x], (imgArray[0].shape[1], imgArray[0].shape[0]), None,scale, scale)
+            if len(imgArray[x].shape) == 2: imgArray[x] = cv.cvtColor(imgArray[x], cv.COLOR_GRAY2BGR)
+        hor= np.hstack(imgArray)
+        ver = hor
+    return ver
 
 def empty(a):
     pass
