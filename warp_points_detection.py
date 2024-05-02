@@ -54,33 +54,33 @@ def empty(a):
 
 # cv.destroyAllWindows()
 
-cap = cv.VideoCapture("./assets/videos/road_vid.mp4")
-initial_points = [100, 100, 100, 100]
-initialize_points_trackbars(initial_points)
+def detect_warp_points(cap):
+    initial_points = [100, 100, 100, 100]
+    initialize_points_trackbars(initial_points)
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        continue
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+            continue
 
-    lane_img = cv.resize(frame, (480, 240))
-    lane_img_copy = lane_img.copy()
-    hsv = cv.cvtColor(lane_img, cv.COLOR_BGR2HSV)
-    threshold_img = utils.thresholding(lane_img, 0, 0, 62, 36, 54, 110)
-    h, w, c = lane_img.shape
-    points = get_trackbar_points()
-    print(points)
-    warped_thresholded = warp_img(threshold_img, points, w, h)
-    warped = warp_img(lane_img, points, w, h)
-    warp_points = draw_points(lane_img_copy, points)
+        lane_img = cv.resize(frame, (480, 240))
+        lane_img_copy = lane_img.copy()
+        hsv = cv.cvtColor(lane_img, cv.COLOR_BGR2HSV)
+        threshold_img = utils.thresholding(lane_img, 0, 0, 62, 36, 54, 110)
+        h, w, c = lane_img.shape
+        points = get_trackbar_points()
+        print(points)
+        warped_thresholded = warp_img(threshold_img, points, w, h)
+        warped = warp_img(lane_img, points, w, h)
+        warp_points = draw_points(lane_img_copy, points)
 
-    cv.imshow('Threshold Image', warped_thresholded)
-    cv.imshow('Warped Image', warped)
-    cv.imshow('Warp Points', warp_points)
-    
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        break
+        cv.imshow('Threshold Image', warped_thresholded)
+        cv.imshow('Warped Image', warped)
+        cv.imshow('Warp Points', warp_points)
+        
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
 
-cap.release()
-cv.destroyAllWindows()
+    cap.release()
+    cv.destroyAllWindows()

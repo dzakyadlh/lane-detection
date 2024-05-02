@@ -25,58 +25,55 @@ def get_trackbar_positions():
 
     return np.array([h_min, s_min, v_min, h_max, s_max, v_max])
 
-initialize_trackbar()
+def detect_color_img(img):
+    initialize_trackbar()
 
-# #by image
-# while True:
-#     # by image
-#     # img = cv.imread('./assets/images/sawah1.jpg')
+    #by image
+    while True:
+        hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
-#     img = cv.resize(img, (480, 240))
-#     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+        pos = get_trackbar_positions()
 
-#     pos = get_trackbar_positions()
+        lower = np.array([pos[0], pos[1], pos[2]])
+        upper = np.array([pos[3], pos[4], pos[5]])
+        mask = cv.inRange(hsv, lower, upper)
+        result = cv.bitwise_and(img, img, mask=mask)
 
-#     lower = np.array([pos[0], pos[1], pos[2]])
-#     upper = np.array([pos[3], pos[4], pos[5]])
-#     mask = cv.inRange(hsv, lower, upper)
-#     result = cv.bitwise_and(img, img, mask=mask)
+        mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+        h_stack = np.hstack([img, mask, result])
 
-#     mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
-#     h_stack = np.hstack([img, mask, result])
+        cv.imshow("Result", h_stack)
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
 
-#     cv.imshow("Result", h_stack)
-#     if cv.waitKey(1) & 0xFF == ord('q'):
-#         break
+    cv.destroyAllWindows()
 
-# cv.destroyAllWindows()
+def detect_color_vid(cap):
+    frame_count = 0
+    while cap.isOpened():
+        frame_count += 1
+        if cap.get(cv.CAP_PROP_FRAME_COUNT) == frame_count:
+            cap.set(cv.CAP_PROP_POS_FRAMES, 0)
+            frame_count = 0
 
-# by video
-cap = cv.VideoCapture("./assets/videos/road_vid.mp4")
-frame_count = 0
-while cap.isOpened():
-    frame_count += 1
-    if cap.get(cv.CAP_PROP_FRAME_COUNT) == frame_count:
-        cap.set(cv.CAP_PROP_POS_FRAMES, 0)
-        frame_count = 0
+        ret, frame = cap.read()
+        frame = cv.resize(frame, (480, 240))
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
-    ret, frame = cap.read()
-    frame = cv.resize(frame, (480, 240))
-    hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        pos = get_trackbar_positions()
 
-    pos = get_trackbar_positions()
+        lower = np.array([pos[0], pos[1], pos[2]])
+        upper = np.array([pos[3], pos[4], pos[5]])
+        mask = cv.inRange(hsv, lower, upper)
+        result = cv.bitwise_and(frame, frame, mask=mask)
 
-    lower = np.array([pos[0], pos[1], pos[2]])
-    upper = np.array([pos[3], pos[4], pos[5]])
-    mask = cv.inRange(hsv, lower, upper)
-    result = cv.bitwise_and(frame, frame, mask=mask)
+        mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+        h_stack = np.hstack([frame, mask, result])
+        cv.imshow('result', h_stack)
+        
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
 
-    mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
-    h_stack = np.hstack([frame, mask, result])
-    cv.imshow('result', h_stack)
-    
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        break
+    cap.release()
+    cv.destroyAllWindows()
 
-cap.release()
-cv.destroyAllWindows()
