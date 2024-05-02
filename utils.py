@@ -2,7 +2,7 @@ import numpy as np
 import cv2 as cv
 
 # Function for thresholding the image
-def thresholding(img, h_min, s_min, v_min, h_max, s_max, v_max):
+def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
     lower = np.array([h_min, s_min, v_min])
     upper = np.array([h_max, s_max, v_max])
