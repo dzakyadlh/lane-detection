@@ -1,4 +1,5 @@
 yolo_archive/yolov4-obj_best.weights
+yolo_archive/yolov3-obj_5000.weights
 obj
 test
 valid

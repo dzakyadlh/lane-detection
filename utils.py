@@ -1,5 +1,117 @@
+import math
 import numpy as np
 import cv2 as cv
+
+# Draw center points for each bounding boxes
+def draw_centers(img, bboxes, color):
+    for bbox in bboxes:
+        x, y, w, h, = bbox
+        center_x = round(x + w / 2)
+        center_y = round(y + h / 2)
+        cv.circle(img, [center_x, center_y], 5, color, -1)
+    return img
+
+def hough_transform(img, intersect, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
+    hough_lines = []
+    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
+    edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
+    lines = cv.HoughLines(edges, 1, np.pi/180,intersect)
+    if lines is not None:
+
+        # Extract each coordinates
+        for line in lines:
+            rho,theta = line[0]
+            a = np.cos(theta)
+            b = np.sin(theta)
+            x0 = a*rho
+            y0 = b*rho
+            x1 = int(x0 + 1000*(-b))
+            y1 = int(y0 + 1000*(a))
+            x2 = int(x0 - 1000*(-b))
+            y2 = int(y0 - 1000*(a))
+
+            # Making sure the lines are vertical
+            angle = np.arctan2(y2-y1, x2-x1)*180.0/np.pi
+            if angle >= min_angle and angle <= max_angle:
+                hough_lines.append([x1, y1, x2, y2])
+
+    # Averaging the lines
+    hough_lines = np.array(sorted(hough_lines, key=lambda x : x[0]))
+    n_hough = len(hough_lines)
+    if n_hough:
+        n = 1
+        avg = hough_lines[0]
+        for i in range(n_hough-1):
+            if abs(hough_lines[i][0]-hough_lines[i+1][0]) < max_xgap:
+                avg += hough_lines[i+1]
+                n += 1
+            else:
+                avg //= n
+                cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
+                avg = hough_lines[i+1]
+                n = 1
+
+    return img
+
+def probabilistic_hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
+    hough_lines = []
+    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
+    edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
+    lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, minLineLength=min_line_length, maxLineGap=max_line_gap)
+    if lines is not None:
+
+        # Extract each coordinates
+        for line in lines:
+            for coordinates in line:
+                x1, y1, x2, y2 = coordinates
+                # Making sure the line go through the y1 = 0 to y2 = max y
+                y1 = 0
+                y2 = img.shape[0]
+
+                # Making sure the lines are vertical
+                angle = np.arctan2(y2-y1, x2-x1)*180.0/np.pi
+                if angle >= min_angle and angle <= max_angle:
+                    hough_lines.append([x1, y1, x2, y2])
+
+    # Averaging the lines
+    hough_avg = []
+    hough_lines = np.array(sorted(hough_lines, key=lambda x : x[0]))
+    n_hough = len(hough_lines)
+    if n_hough:
+        n = 1
+        avg = hough_lines[0]
+        for i in range(n_hough-1):
+            if abs(hough_lines[i][0]-hough_lines[i+1][0]) < max_xgap:
+                avg += hough_lines[i+1]
+                n += 1
+            else:
+                avg //= n
+                cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
+                avg = hough_lines[i+1]
+                n = 1
+            if i == n_hough-2:
+                avg //= n
+                hough_avg.append(avg)
+                cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
+
+    return hough_avg, img
+
+# Calculate angle between ROI and Hough lines
+def calculate_angle(hough_lines):
+    # Calculate left-most and right-most Hough lines gradients
+    n = len(hough_lines)
+    line = hough_lines[n-1]
+    m = (line[3]-line[1])/(line[2]-line[0])
+
+    # Direction of the turn, 0 for left, 1 for right
+    turn_dir = 0
+    if m > 0:
+        turn_dir = 1
+
+    # Calculate angle
+    angle = round(abs(math.atan(m)), 3)
+
+    return angle, turn_dir
 
 # Function for thresholding the image
 def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
