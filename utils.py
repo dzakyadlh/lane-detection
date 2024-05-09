@@ -4,12 +4,14 @@ import cv2 as cv
 
 # Draw center points for each bounding boxes
 def draw_centers(img, bboxes, color):
+    centers = []
     for bbox in bboxes:
         x, y, w, h, = bbox
         center_x = round(x + w / 2)
         center_y = round(y + h / 2)
         cv.circle(img, [center_x, center_y], 5, color, -1)
-    return img
+        centers.append([center_x, center_y])
+    return centers, img
 
 def hough_transform(img, intersect, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
     hough_lines = []
@@ -86,15 +88,52 @@ def probabilistic_hough_transform(img, intersect, min_line_length, max_line_gap,
                 n += 1
             else:
                 avg //= n
+                print(avg)
                 cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
                 avg = hough_lines[i+1]
                 n = 1
             if i == n_hough-2:
                 avg //= n
+                print(avg)
                 hough_avg.append(avg)
                 cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
 
     return hough_avg, img
+
+# Linearization method
+# pseudocode
+# centers = [[x, y], ...]
+# lines = []
+# n = len(lines)
+# pivot = centers[0]
+# Calculate the mean between the min_x and max_x that can be considered the same row, e.g. delta x < 60
+# Set y1=0 and y2=img.shape[0]
+# Draw the line
+# reset lines[]
+def lines_linearization(img, centers):
+    # Sort the array
+    centers = np.array(sorted(centers, key=lambda x : x[0]))
+
+    # Initialize variables needed
+    lines = []
+    n = len(centers)
+    highest = centers[0][1]
+    lowest = centers[0][1]
+
+    # Set pivot and start averaging
+    pivot = centers[0]
+    for i in range(0, n-1):
+        if abs(pivot[0]-centers[i+1][0]) < 60:
+            if centers[i+1][1] < pivot[1]:
+                lowest = centers[i+1]
+            else:
+                highest = centers[i+1]
+        else:
+            lines.append(lowest + highest)
+            cv.line(img, (lowest[0], lowest[1]), (highest[0], highest[1]), (0, 0, 255), 2)
+            pivot = centers[i+1]
+
+    return lines, img
 
 # Calculate angle between ROI and Hough lines
 def calculate_angle(hough_lines):
@@ -109,7 +148,7 @@ def calculate_angle(hough_lines):
         turn_dir = 1
 
     # Calculate angle
-    angle = round(abs(math.atan(m)), 3)
+    angle = round(abs(90 - math.atan(m)*180/math.pi), 3)
 
     return angle, turn_dir
 

@@ -67,7 +67,7 @@ model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 # # recorded.release()
 # cv.destroyAllWindows()
 
-img = cv.imread('test2.jpg')
+img = cv.imread('test1.jpg')
 img = cv.resize(img, (416, 416))
 # Run detection
 labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
@@ -75,22 +75,27 @@ labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
     # cv.rectangle(img, box, color, 1)
 
 # Draw bounding box centers
-img = utils.draw_centers(img, bboxes, color)
+centers, img = utils.draw_centers(img, bboxes, color)
 
 # Run hough transform
 # img = utils.hough_transform(img, 10, 80, 100, 60)
-hough_avg, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
+# hough_avg, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
+
+# Or Linearization
+lines, img = utils.lines_linearization(img, centers)
+print(lines)
 
 # Generate ROI on the img
 img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
 
 # Calculate angle of Hough line
-angle, turn_dir = utils.calculate_angle(hough_avg)
+# angle, turn_dir = utils.calculate_angle(houglines)
+angle, turn_dir = utils.calculate_angle(lines)
 if turn_dir == 0:
-    turn_dir = 'left'
-turn_dir = 'right'
+    turn_dir = ' turn left'
+turn_dir = 'turn right'
 text = str(angle)+', '+turn_dir
-img = cv.putText(img, text, (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+img = cv.putText(img, text, (250,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
 
 cv.imshow('img', img)
 cv.waitKey(0)
