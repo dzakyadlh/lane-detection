@@ -57,100 +57,90 @@ def hough_transform(img, intersect, min_angle, max_angle, max_xgap, color=(0, 0,
 
 def probabilistic_hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
     hough_lines = []
-    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
+    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)  # You need to define `thresholding` function
     edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
     lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, minLineLength=min_line_length, maxLineGap=max_line_gap)
     if lines is not None:
+        lines = np.squeeze(lines)  # Convert lines to a 2D array
 
-        # Extract each coordinates
-        for line in lines:
-            for coordinates in line:
-                x1, y1, x2, y2 = coordinates
-                # Making sure the line go through the y1 = 0 to y2 = max y
-                y1 = 0
-                y2 = img.shape[0]
+        # Making sure the lines go through y1 = 0 to y2 = max y
+        lines[:, 1] = 0
+        lines[:, 3] = img.shape[0]
 
-                # Making sure the lines are vertical
-                angle = np.arctan2(y2-y1, x2-x1)*180.0/np.pi
-                if angle >= min_angle and angle <= max_angle:
-                    hough_lines.append([x1, y1, x2, y2])
+        # Making sure the lines are vertical
+        angles = np.arctan2(lines[:, 3] - lines[:, 1], lines[:, 2] - lines[:, 0]) * 180.0 / np.pi
+        mask = (angles >= min_angle) & (angles <= max_angle)
+        lines = lines[mask]
 
-    # Averaging the lines
-    hough_avg = []
-    hough_lines = np.array(sorted(hough_lines, key=lambda x : x[0]))
-    n_hough = len(hough_lines)
-    if n_hough:
-        n = 1
-        avg = hough_lines[0]
-        for i in range(n_hough-1):
-            if abs(hough_lines[i][0]-hough_lines[i+1][0]) < max_xgap:
-                avg += hough_lines[i+1]
-                n += 1
-            else:
-                avg //= n
-                print(avg)
-                cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
-                avg = hough_lines[i+1]
-                n = 1
-            if i == n_hough-2:
-                avg //= n
-                print(avg)
-                hough_avg.append(avg)
-                cv.line(img,(avg[0],avg[1]),(avg[2],avg[3]),color,2)
+        if len(lines) > 0:
+            # Sorting lines based on x1
+            lines = lines[np.argsort(lines[:, 0])]
 
-    return hough_avg, img
+            # Averaging the lines
+            indices = np.where(np.abs(np.diff(lines[:, 0])) >= max_xgap)[0]
+            starts = np.concatenate([[0], indices + 1])
+            ends = np.concatenate([indices + 1, [len(lines)]])
+            for start, end in zip(starts, ends):
+                avg_line = np.mean(lines[start:end], axis=0).astype(int)
+                hough_lines.append(avg_line)
+                cv.line(img, (avg_line[0], avg_line[1]), (avg_line[2], avg_line[3]), color, 2)
+
+    return hough_lines, img
 
 # Linearization method
-# pseudocode
-# centers = [[x, y], ...]
-# lines = []
-# n = len(lines)
-# pivot = centers[0]
-# Calculate the mean between the min_x and max_x that can be considered the same row, e.g. delta x < 60
-# Set y1=0 and y2=img.shape[0]
-# Draw the line
-# reset lines[]
 def lines_linearization(img, centers):
-    # Sort the array
-    centers = np.array(sorted(centers, key=lambda x : x[0]))
+    # Sort the centers array by x-coordinate
+    centers = np.array(sorted(centers, key=lambda x: x[0]))
 
     # Initialize variables needed
     lines = []
     n = len(centers)
-    highest = centers[0][1]
-    lowest = centers[0][1]
-
-    # Set pivot and start averaging
     pivot = centers[0]
-    for i in range(0, n-1):
-        if abs(pivot[0]-centers[i+1][0]) < 60:
-            if centers[i+1][1] < pivot[1]:
-                lowest = centers[i+1]
-            else:
-                highest = centers[i+1]
+    highest, lowest = pivot, pivot
+    y1, y2 = 0, img.shape[0]  # y coordinates for drawing lines
+
+    # Iterate through all centers
+    for i in range(1, n):
+        if abs(pivot[0] - centers[i][0]) < 60:  # Check if centers are close in x-direction
+            # Update line if the y is lower or higher
+            if centers[i][1] < lowest[1]:
+                lowest = centers[i]
+            elif centers[i][1] > highest[1]:
+                highest = centers[i]
         else:
-            lines.append(lowest + highest)
-            cv.line(img, (lowest[0], lowest[1]), (highest[0], highest[1]), (0, 0, 255), 2)
-            pivot = centers[i+1]
+            # Add the line defined by the lowest and highest points in the x-range
+            lines.append([lowest[0], y1, highest[0], y2])
+            # Update pivot
+            pivot = centers[i]
+            # Reset highest and lowest coordinates
+            highest, lowest = pivot, pivot
+
+     # Add the last line defined by the lowest and highest points in the x-range
+    lines.append([lowest[0], y1, highest[0], y2])
+    # Draw all the lines on the image
+    for line in lines:
+        cv.line(img, (line[0], line[1]), (line[2], line[3]), (0, 0, 255), 2)
 
     return lines, img
 
-# Calculate angle between ROI and Hough lines
-def calculate_angle(hough_lines):
-    # Calculate left-most and right-most Hough lines gradients
-    n = len(hough_lines)
-    line = hough_lines[n-1]
-    m = (line[3]-line[1])/(line[2]-line[0])
+# Calculate angle between ROI and lines
+def calculate_angle(lines):
+    left_line = lines[0]
+    right_line = lines[-1]
 
-    # Direction of the turn, 0 for left, 1 for right
-    turn_dir = 0
-    if m > 0:
-        turn_dir = 1
+    # Calculate left-most and right-most line gradients
+    ml = (left_line[3] - left_line[1])/(left_line[2]-left_line[0])
+    mr = (right_line[3] - right_line[1])/(right_line[2]-right_line[0])
 
     # Calculate angle
-    angle = round(abs(90 - math.atan(m)*180/math.pi), 3)
+    # angle_left = round(90 - math.degrees(math.atan(ml)), 3)
+    # angle_right = round(90 - math.degrees(math.atan(mr)), 3)
 
-    return angle, turn_dir
+    # Calculate angles
+    angle_left = round(90 - math.degrees(math.atan2(left_line[3] - left_line[1], left_line[2] - left_line[0])), 3)
+    angle_right = round(90 - math.degrees(math.atan2(right_line[3] - right_line[1], right_line[2] - right_line[0])), 3)
+
+    return angle_left, angle_right
 
 # Function for thresholding the image
 def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
