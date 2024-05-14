@@ -28,6 +28,38 @@ net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
 model = cv.dnn.DetectionModel(net)
 model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 
+img = cv.imread('assets/images/test3.jpg')
+img = cv.resize(img, (416, 416))
+# Run detection
+labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
+# for (labelid, score, box) in zip(labels, scores, bboxes):
+    # cv.rectangle(img, box, color, 1)
+
+# Draw bounding box centers
+centers, img = utils.draw_centers(img, bboxes, color)
+print(centers)
+
+# Run hough transform
+# img = utils.hough_transform(img, 10, 80, 100, 60)
+# lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
+
+# Or Linearization
+lines, img = utils.ransac_lines_linearization(img, centers)
+
+# Generate ROI on the img
+img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
+
+# Calculate angle of Hough line
+angle_left, angle_right = utils.calculate_angle(lines)
+img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+
+# cv.imshow('img', img)
+# cv.waitKey(0)
+plt.imshow(img)
+plt.show()
+
+# darknet.exe detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights -ext_output
 
 # Take input
 # cap = cv.VideoCapture(0)
@@ -66,35 +98,3 @@ model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 # cap.release()
 # # recorded.release()
 # cv.destroyAllWindows()
-
-img = cv.imread('test1.jpg')
-img = cv.resize(img, (416, 416))
-# Run detection
-labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
-# for (labelid, score, box) in zip(labels, scores, bboxes):
-    # cv.rectangle(img, box, color, 1)
-
-# Draw bounding box centers
-centers, img = utils.draw_centers(img, bboxes, color)
-
-# Run hough transform
-# img = utils.hough_transform(img, 10, 80, 100, 60)
-lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
-
-# Or Linearization
-# lines, img = utils.lines_linearization(img, centers)
-
-# Generate ROI on the img
-img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
-
-# Calculate angle of Hough line
-angle_left, angle_right = utils.calculate_angle(lines)
-img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-
-cv.imshow('img', img)
-cv.waitKey(0)
-# plt.imshow(img)
-# plt.show()
-
-# darknet.exe detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights -ext_output

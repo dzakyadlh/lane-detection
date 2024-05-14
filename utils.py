@@ -1,6 +1,7 @@
 import math
 import numpy as np
 import cv2 as cv
+from sklearn.linear_model import RANSACRegressor
 
 # Draw center points for each bounding boxes
 def draw_centers(img, bboxes, color):
@@ -12,6 +13,14 @@ def draw_centers(img, bboxes, color):
         cv.circle(img, [center_x, center_y], 5, color, -1)
         centers.append([center_x, center_y])
     return centers, img
+
+# Function for thresholding the image
+def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
+    hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    lower = np.array([h_min, s_min, v_min])
+    upper = np.array([h_max, s_max, v_max])
+    mask = cv.inRange(hsv, lower, upper)
+    return mask
 
 def hough_transform(img, intersect, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
     hough_lines = []
@@ -123,6 +132,62 @@ def lines_linearization(img, centers):
 
     return lines, img
 
+def ransac_lines_linearization(img, centers):
+    # Sort the centers array by x-coordinate
+    centers = np.array(sorted(centers, key=lambda x: x[0]))
+
+    # Convert centers to numpy array
+    centers = np.array(centers)
+
+    # Initialize variables needed
+    lines = []
+    y1, y2 = 0, img.shape[0]  # y coordinates for drawing lines
+
+    # Fit lines using RANSAC
+    ransac = RANSACRegressor()
+
+    if len(centers) < 2:
+        return lines, img
+
+    # Use RANSAC to fit a line model
+    ransac.fit(centers[:, 0].reshape(-1, 1), centers[:, 1])
+    inlier_mask = ransac.inlier_mask_
+
+    # Extract inliers and outliers
+    inliers = centers[inlier_mask]
+    outliers = centers[~inlier_mask]
+
+    # Sort inliers by x-coordinate
+    inliers = inliers[np.argsort(inliers[:, 0])]
+
+    # Create lines from inliers
+    if len(inliers) > 0:
+        x1, y1 = inliers[0][0], inliers[0][1]
+        x2, y2 = inliers[-1][0], inliers[-1][1]
+        lines.append([x1, y1, x2, y2])
+        cv.line(img, (x1, 0), (x2, img.shape[0]), (0, 0, 255), 2)
+
+    # Process remaining outliers if any
+    while len(outliers) > 0:
+        ransac.fit(outliers[:, 0].reshape(-1, 1), outliers[:, 1])
+        inlier_mask = ransac.inlier_mask_
+
+        # Extract inliers and outliers
+        inliers = outliers[inlier_mask]
+        outliers = outliers[~inlier_mask]
+
+        # Sort inliers by x-coordinate
+        inliers = inliers[np.argsort(inliers[:, 0])]
+
+        # Create lines from inliers
+        if len(inliers) > 0:
+            x1, y1 = inliers[0][0], inliers[0][1]
+            x2, y2 = inliers[-1][0], inliers[-1][1]
+            lines.append([x1, y1, x2, y2])
+            cv.line(img, (x1, 0), (x2, img.shape[0]), (0, 0, 255), 2)
+
+    return lines, img
+
 # Calculate angle between ROI and lines
 def calculate_angle(lines):
     left_line = lines[0]
@@ -132,23 +197,27 @@ def calculate_angle(lines):
     ml = (left_line[3] - left_line[1])/(left_line[2]-left_line[0])
     mr = (right_line[3] - right_line[1])/(right_line[2]-right_line[0])
 
-    # Calculate angle
-    # angle_left = round(90 - math.degrees(math.atan(ml)), 3)
-    # angle_right = round(90 - math.degrees(math.atan(mr)), 3)
-
     # Calculate angles
     angle_left = round(90 - math.degrees(math.atan2(left_line[3] - left_line[1], left_line[2] - left_line[0])), 3)
     angle_right = round(90 - math.degrees(math.atan2(right_line[3] - right_line[1], right_line[2] - right_line[0])), 3)
 
     return angle_left, angle_right
 
-# Function for thresholding the image
-def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
-    hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-    lower = np.array([h_min, s_min, v_min])
-    upper = np.array([h_max, s_max, v_max])
-    mask = cv.inRange(hsv, lower, upper)
-    return mask
+# Tractor guidance
+def tractor_guidance(img, lines):
+    # Extract wheel position assuming camera is on the middle of tractor
+    pw = img.shape[1]/2
+
+    # Extract most-left and most-right row position
+    pl = lines[0]
+    pr = lines[-1]
+    
+    # Calculate distances from the right and left crop row to the wheel
+    dl = abs(pw-pl)
+    dr = abs(pw-pr)
+    
+    # Return the control signal
+    return dr-dl
 
 # Function to warp image into a bird-eye view
 def warp_img(img, points, width, height, inverse = False):
