@@ -29,3 +29,17 @@ wb = 66
 hb = 232
 
 darknet.exe detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights data/test2.jpg
+
+Tractor sizes:
+wheel diameter: 40 cm
+wheel thickness: 10 cm
+wheel distance: 35 cm
+wheel to mid: 17.5 cm
+
+Legowo:
+row group horizontal distance: 50 cm
+row horizontal distance: 25 cm
+crop vertical distance: 12.5 cm
+
+From tractor and legowo:
+free lane: 50-10 = ~ 40 cm

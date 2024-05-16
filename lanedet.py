@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import time
 import utils
 
+start_time = time.time()
 
 # Set parameters
 model_file = 'yolo_archive/yolov4-obj_best.weights'
@@ -28,36 +29,38 @@ net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
 model = cv.dnn.DetectionModel(net)
 model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 
-img = cv.imread('assets/images/test3.jpg')
+img = cv.imread('assets/images/test4.jpg')
 img = cv.resize(img, (416, 416))
+xmax, ymax = img.shape[1], img.shape[0]
 # Run detection
 labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
 # for (labelid, score, box) in zip(labels, scores, bboxes):
     # cv.rectangle(img, box, color, 1)
 
+# Define ROI on the image and eliminate outliers
+roi1, roi2 = round(0.1*xmax), round(0.9*xmax)
+
 # Draw bounding box centers
-centers, img = utils.draw_centers(img, bboxes, color)
-print(centers)
+centers, img = utils.draw_centers(img, bboxes, roi1, roi2, color)
 
 # Run hough transform
 # img = utils.hough_transform(img, 10, 80, 100, 60)
 # lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
 
 # Or Linearization
-lines, img = utils.ransac_lines_linearization(img, centers)
-
-# Generate ROI on the img
-img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
+lines, img = utils.lines_linearization(img, centers, 60)
 
 # Calculate angle of Hough line
 angle_left, angle_right = utils.calculate_angle(lines)
-img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-# cv.imshow('img', img)
-# cv.waitKey(0)
-plt.imshow(img)
-plt.show()
+print('Runtime(s): ', round((time.time() - start_time),3))
+
+cv.imshow('img', img)
+cv.waitKey(0)
+# plt.imshow(img)
+# plt.show()
 
 # darknet.exe detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights -ext_output
 

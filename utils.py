@@ -4,13 +4,19 @@ import cv2 as cv
 from sklearn.linear_model import RANSACRegressor
 
 # Draw center points for each bounding boxes
-def draw_centers(img, bboxes, color):
+def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
     centers = []
     for bbox in bboxes:
         x, y, w, h, = bbox
         center_x = round(x + w / 2)
         center_y = round(y + h / 2)
+        if roi1!=0:
+            if center_x > roi2 or center_x < roi1:
+                continue
+            elif center_y > roi2 or center_y < roi1:
+                continue
         cv.circle(img, [center_x, center_y], 5, color, -1)
+        # cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
         centers.append([center_x, center_y])
     return centers, img
 
@@ -97,7 +103,7 @@ def probabilistic_hough_transform(img, intersect, min_line_length, max_line_gap,
     return hough_lines, img
 
 # Linearization method
-def lines_linearization(img, centers):
+def lines_linearization(img, centers, max_xgap):
     # Sort the centers array by x-coordinate
     centers = np.array(sorted(centers, key=lambda x: x[0]))
 
@@ -110,7 +116,7 @@ def lines_linearization(img, centers):
 
     # Iterate through all centers
     for i in range(1, n):
-        if abs(pivot[0] - centers[i][0]) < 60:  # Check if centers are close in x-direction
+        if abs(pivot[0] - centers[i][0]) < max_xgap:  # Check if centers are close in x-direction
             # Update line if the y is lower or higher
             if centers[i][1] < lowest[1]:
                 lowest = centers[i]
