@@ -29,75 +29,86 @@ net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
 model = cv.dnn.DetectionModel(net)
 model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 
-img = cv.imread('assets/images/test4.jpg')
-img = cv.resize(img, (416, 416))
-xmax, ymax = img.shape[1], img.shape[0]
-# Run detection
-labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
-# for (labelid, score, box) in zip(labels, scores, bboxes):
-    # cv.rectangle(img, box, color, 1)
+# img = cv.imread('assets/images/test4.jpg')
+# img = cv.resize(img, (416, 416))
+# xmax, ymax = img.shape[1], img.shape[0]
+# # Run detection
+# labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
+# # for (labelid, score, box) in zip(labels, scores, bboxes):
+#     # cv.rectangle(img, box, color, 1)
 
-# Define ROI on the image and eliminate outliers
-roi1, roi2 = round(0.1*xmax), round(0.9*xmax)
+# # Define ROI on the image and eliminate outliers
+# roi1, roi2 = round(0.1*xmax), round(0.9*xmax)
 
-# Draw bounding box centers
-centers, img = utils.draw_centers(img, bboxes, roi1, roi2, color)
+# # Draw bounding box centers
+# centers, img = utils.draw_centers(img, bboxes, roi1, roi2, color)
 
-# Run hough transform
-# img = utils.hough_transform(img, 10, 80, 100, 60)
-# lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
+# # Run hough transform
+# img = utils.hough_transform(img, 10, 80, 100, frame.shape[1]/7)
+# lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, frame.shape[1]/7)
 
-# Or Linearization
-lines, img = utils.lines_linearization(img, centers, 60)
+# # # Or Linearization
+# # lines, img = utils.lines_linearization(img, centers, frame.shape[1]/7)
 
-# Calculate angle of Hough line
-angle_left, angle_right = utils.calculate_angle(lines)
-img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+# # Calculate angle of Hough line
+# angle_left, angle_right = utils.calculate_angle(lines)
+# img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+# img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-print('Runtime(s): ', round((time.time() - start_time),3))
+# print('Runtime(s): ', round((time.time() - start_time),3))
 
-cv.imshow('img', img)
-cv.waitKey(0)
+# cv.imshow('img', img)
+# cv.waitKey(0)
 # plt.imshow(img)
 # plt.show()
 
 # darknet.exe detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights -ext_output
 
 # Take input
-# cap = cv.VideoCapture(0)
-# width = int(cap.get(3))
-# height = int(cap.get(4))
+cap = cv.VideoCapture('assets/videos/rice_ss.mp4')
 
-# cap.set(3, 1280)
-# cap.set(4, 720)
+# cap.set(3, 800)
+# cap.set(4, 600)
 
-# # recorded = cv2.VideoWriter('recorded_vid.avi', cv2.VideoWriter_fourcc(*'MJPG'), 30, (width, height))
+# recorded = cv2.VideoWriter('recorded_vid.avi', cv2.VideoWriter_fourcc(*'MJPG'), 30, (width, height))
 
-# while(cap.isOpened()):
-#     ret, frame = cap.read()
-#     if ret == True:
-#         # recorded.write(frame)
+while(cap.isOpened()):
+    ret, frame = cap.read()
+    if ret == True:
+        # recorded.write(frame)
 
-#         # Run detection
-#         labels, scores, bboxes = model.detect(frame, conf_th, NMS_th)
+        frame = cv.resize(frame, (800, 600))
+        xmax, ymax = frame.shape[1], frame.shape[0]
+        # Run detection
+        labels, scores, bboxes = model.detect(frame, conf_th, NMS_th)
+        # for (labelid, score, box) in zip(labels, scores, bboxes):
+            # cv.rectangle(frame, box, color, 1)
 
-#         # Draw bounding box centers
-#         frame = utils.draw_centers(frame, bboxes, color)
+        # Define ROI on the image and eliminate outliers
+        roi1, roi2 = round(0.1*xmax), round(0.9*xmax)
 
-#         # Run hough transform
-#         frame = utils.hough_transform(frame)
+        # Draw bounding box centers
+        centers, frame = utils.draw_centers(frame, bboxes, roi1, roi2, color)
 
-#         # Generate ROI on the frame
-#         frame = cv.rectangle(frame, (200,200), (500,500), (255, 0, 0), 2)
+        # Run hough transform
+        frame = utils.hough_transform(frame, 10, 80, 100, frame.shape[1]/7)
+        lines, frame = utils.probabilistic_hough_transform(frame, 10, 5, 100, 75, 105, frame.shape[1]/7)
 
-#         cv.imshow('frame', frame)
+        # Or Linearization
+        # lines, frame = utils.lines_linearization(frame, centers, frame.shape[1]/7)
 
-#         if cv.waitKey(1) & 0xFF == ord('q'):
-#             break
-#     else:
-#         break
+        # Calculate angle of Hough line
+        # angle_left, angle_right = utils.calculate_angle(lines)
+        # frame = cv.putText(frame, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+        # frame = cv.putText(frame, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-# cap.release()
-# # recorded.release()
-# cv.destroyAllWindows()
+        cv.imshow('frame', frame)
+
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
+    else:
+        break
+
+cap.release()
+# recorded.release()
+cv.destroyAllWindows()

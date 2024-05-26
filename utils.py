@@ -16,7 +16,7 @@ def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
             elif center_y > roi2 or center_y < roi1:
                 continue
         cv.circle(img, [center_x, center_y], 5, color, -1)
-        # cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
+        cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
         centers.append([center_x, center_y])
     return centers, img
 
@@ -211,16 +211,16 @@ def calculate_angle(lines):
 
 # Tractor guidance
 def tractor_guidance(img, lines):
-    # Extract wheel position assuming camera is on the middle of tractor
-    pw = img.shape[1]/2
+    # Extract camera's mid position assuming camera is on the middle of tractor
+    pc = img.shape[1]/2
 
-    # Extract most-left and most-right row position
+    # Extract left-most and right-most row position
     pl = lines[0]
     pr = lines[-1]
     
-    # Calculate distances from the right and left crop row to the wheel
-    dl = abs(pw-pl)
-    dr = abs(pw-pr)
+    # Calculate distances from the right and left crop row to the middle
+    dl = abs(pc-pl)
+    dr = abs(pc-pr)
     
     # Return the control signal
     return dr-dl
