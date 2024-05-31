@@ -6,7 +6,7 @@ import utils
 
 
 # Set parameters
-model_file = 'yolo_archive/yolov4-obj_best.weights'
+model_file = 'yolo_archive/models/yolov4/v3/yolov4-obj_5000.weights'
 config_file = 'yolo_archive/yolov4-obj.cfg'
 conf_th = .25
 NMS_th = .25
@@ -28,7 +28,7 @@ net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
 model = cv.dnn.DetectionModel(net)
 model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 
-img = cv.imread('assets/images/test3.jpg')
+img = cv.imread('assets/images/test1.jpg')
 img = cv.resize(img, (416, 416))
 # Run detection
 labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
@@ -41,13 +41,13 @@ print(centers)
 
 # Run hough transform
 # img = utils.hough_transform(img, 10, 80, 100, 60)
-# lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
+lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, img.shape[0]/7)
 
 # Or Linearization
-lines, img = utils.ransac_lines_linearization(img, centers)
+# lines, img = utils.lines_linearization(img, centers, 60)
 
 # Generate ROI on the img
-img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
+# img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
 
 # Calculate angle of Hough line
 angle_left, angle_right = utils.calculate_angle(lines)

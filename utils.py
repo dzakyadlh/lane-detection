@@ -4,7 +4,7 @@ import cv2 as cv
 from sklearn.linear_model import RANSACRegressor
 
 # Draw center points for each bounding boxes
-def draw_centers(img, bboxes, color):
+def draw_centers(img, bboxes, color=(255,0,255)):
     centers = []
     for bbox in bboxes:
         x, y, w, h, = bbox
@@ -97,7 +97,7 @@ def probabilistic_hough_transform(img, intersect, min_line_length, max_line_gap,
     return hough_lines, img
 
 # Linearization method
-def lines_linearization(img, centers):
+def lines_linearization(img, centers, max_xgap):
     # Sort the centers array by x-coordinate
     centers = np.array(sorted(centers, key=lambda x: x[0]))
 
@@ -110,7 +110,7 @@ def lines_linearization(img, centers):
 
     # Iterate through all centers
     for i in range(1, n):
-        if abs(pivot[0] - centers[i][0]) < 60:  # Check if centers are close in x-direction
+        if abs(pivot[0] - centers[i][0]) < max_xgap:  # Check if centers are close in x-direction
             # Update line if the y is lower or higher
             if centers[i][1] < lowest[1]:
                 lowest = centers[i]
@@ -187,6 +187,20 @@ def ransac_lines_linearization(img, centers):
             cv.line(img, (x1, 0), (x2, img.shape[0]), (0, 0, 255), 2)
 
     return lines, img
+
+def linear_regression(img, centers=[], lines=[]):
+    centers = np.array(sorted(centers, key=lambda x: x[0]))
+    centers = np.array(centers)
+    x, y = centers[:, 0], centers[:, 1]
+    xy = x*y
+    xsq = x**2
+    
+    n = len(x)
+    m = (n*np.sum(xy)-np.sum(x)*np.sum(y))/(n*np.sum(xsq)-np.sum(xsq))
+    b = (np.sum(y)*np.sum(xsq)-np.sum(x)*np.sum(xy))/(n*np.sum(xsq)-np.sum(xsq))
+
+    angles = np.degrees(np.arctan(m))
+
 
 # Calculate angle between ROI and lines
 def calculate_angle(lines):

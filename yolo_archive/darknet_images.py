@@ -1,52 +1,3 @@
-HSV -lane
-h min = 38
-h max = 90
-sat min = 166
-sat max = 255
-val min = 74
-val max = 255
-
-HSV -paddy
-h min = 0
-h max = 36
-sat min = 0
-sat max = 255
-val min = 0
-val max = 255
-
-HSV -road
-h min = 0
-h max = 179
-s min = 0
-s max = 75
-v min = 62
-v max = 110
-
-warp points -road
-wt = 118
-ht = 175
-wb = 66
-hb = 232
-
-darknet.exe detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights data/test2.jpg
-
-darknet detector test data/obj.data cfg/yolov3-obj.cfg weights/yolov3-obj_final.weights data/test2.jpg -thresh 0.3 
--ext_output data/predictions/prediction.jpg
-
-yolov4
-
-darknet.exe detector train data/obj.data cfg/yolov4-obj.cfg yolov4.conv.137 -dont_show -map
-
-darknet detector map data/obj.data cfg/yolov4-obj.cfg data/backup/yolov4-obj_best.weights
-
-darknet detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights data/test2.jpg -thresh 0.3 -ext_output data/predictions/prediction.jpg
-
-darknet detector test data/obj.data cfg/yolov4-obj.cfg data/backup/yolov4-obj_5000.weights data/test2.jpg -thresh 0.3 -ext_output data/predictions/prediction.jpg
-
-python darknet_images.py --input data/test4.jpg --weights data/backup/yolov4-obj_5000.weights --config_file cfg/yolov4-obj.cfg --data_file data/obj.data --thresh 0.3
- --lane_detection True
-
-
 import argparse
 import os
 import glob
@@ -55,7 +6,6 @@ import time
 import cv2
 import numpy as np
 import darknet
-import matplotlib.pyplot as plt
 import utils
 
 
@@ -82,7 +32,7 @@ def parser():
                         help="path to data file")
     parser.add_argument("--thresh", type=float, default=.25,
                         help="remove detections with lower confidence")
-    parser.add_argument("--lane_detection", help="activate lane detection utility")
+    parser.add_argument("--lane_detection", type=bool, default=False, help="activate lane detection utility")
     return parser.parse_args()
 
 
@@ -270,20 +220,17 @@ def main():
         else:
             image_name = input("Enter Image Path: ")
         prev_time = time.time()
+        image, detections = image_detection(
+            image_name, network, class_names, class_colors, args.thresh, is_lane_detection=args.lane_detection
+        )
         # Start lane detection if requested
         if args.lane_detection:
-            image, detections = image_detection(
-            image_name, network, class_names, class_colors, args.thresh, lane_detection=True
-            )
-            for label, confidence, bbox in detections:
+            for detection in detections:
+                label, confidence, bbox =  detection
                 # Draw bounding box centers
-                centers, img = utils.draw_centers(img, bbox, class_colors[label])
-                # Run hough transform
-                lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, 60)
-        if not args.lane_detection:
-            image, detections = image_detection(
-            image_name, network, class_names, class_colors, args.thresh
-            )
+                centers, image = utils.draw_centers(image, [bbox])
+            # Run hough transform
+            lines, image = utils.probabilistic_hough_transform(image, 10, 5, 100, 75, 105, 60)
         if args.save_labels:
             save_annotations(image_name, image, detections, class_names)
         darknet.print_detections(detections, args.ext_output)
