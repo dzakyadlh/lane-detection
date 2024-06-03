@@ -7,7 +7,7 @@ import utils
 start_time = time.time()
 
 # Set parameters
-model_file = 'yolo_archive/models/yolov4/v3/yolov4-obj_5000.weights'
+model_file = 'yolo_archive/models/yolov4/yolov4-obj_best.weights'
 config_file = 'yolo_archive/yolov4-obj.cfg'
 conf_th = .25
 NMS_th = .25
@@ -31,30 +31,36 @@ model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 
 img = cv.imread('assets/images/test1.jpg')
 img = cv.resize(img, (416, 416))
+
+# Set Region of Interest before detection
+# img = img[y:y+h, x:x+w]
+
 # Run detection
 labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
 # for (labelid, score, box) in zip(labels, scores, bboxes):
     # cv.rectangle(img, box, color, 1)
 
-# # Define ROI on the image and eliminate outliers
-# roi1, roi2 = round(0.1*xmax), round(0.9*xmax)
+# Draw centers
+centers, img = utils.draw_centers(img, bboxes)
 
 # Run hough transform
 # img = utils.hough_transform(img, 10, 80, 100, 60)
 lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, img.shape[0]/7)
+print(lines)
 
 # Or Linearization
 # lines, img = utils.lines_linearization(img, centers, 60)
 
-# Generate ROI on the img
-# img = cv.rectangle(img, (25, 25), (375, 375), (255, 0, 0), 2)
-
 # # Calculate angle of Hough line
-angle_left, angle_right = utils.calculate_angle(lines)
-img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
-img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+# angle_left, angle_right = utils.calculate_angle(lines)
+# img = cv.putText(img, str(angle_left), (50,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+# img = cv.putText(img, str(angle_right), (300,400), cv.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-# print('Runtime(s): ', round((time.time() - start_time),3))
+# Tractor guidance
+guidance = utils.tractor_guidance(img, lines)
+print(guidance)
+
+print('Runtime(s): ', round((time.time() - start_time),3))
 
 cv.imshow('img', img)
 cv.waitKey(0)

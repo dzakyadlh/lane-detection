@@ -1,7 +1,6 @@
 import math
 import numpy as np
 import cv2 as cv
-from sklearn.linear_model import RANSACRegressor
 
 # Draw center points for each bounding boxes
 def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
@@ -16,7 +15,7 @@ def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
             elif center_y > roi2 or center_y < roi1:
                 continue
         cv.circle(img, [center_x, center_y], 5, color, -1)
-        cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
+        # cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
         centers.append([center_x, center_y])
     return centers, img
 
@@ -138,62 +137,6 @@ def lines_linearization(img, centers, max_xgap):
 
     return lines, img
 
-def ransac_lines_linearization(img, centers):
-    # Sort the centers array by x-coordinate
-    centers = np.array(sorted(centers, key=lambda x: x[0]))
-
-    # Convert centers to numpy array
-    centers = np.array(centers)
-
-    # Initialize variables needed
-    lines = []
-    y1, y2 = 0, img.shape[0]  # y coordinates for drawing lines
-
-    # Fit lines using RANSAC
-    ransac = RANSACRegressor()
-
-    if len(centers) < 2:
-        return lines, img
-
-    # Use RANSAC to fit a line model
-    ransac.fit(centers[:, 0].reshape(-1, 1), centers[:, 1])
-    inlier_mask = ransac.inlier_mask_
-
-    # Extract inliers and outliers
-    inliers = centers[inlier_mask]
-    outliers = centers[~inlier_mask]
-
-    # Sort inliers by x-coordinate
-    inliers = inliers[np.argsort(inliers[:, 0])]
-
-    # Create lines from inliers
-    if len(inliers) > 0:
-        x1, y1 = inliers[0][0], inliers[0][1]
-        x2, y2 = inliers[-1][0], inliers[-1][1]
-        lines.append([x1, y1, x2, y2])
-        cv.line(img, (x1, 0), (x2, img.shape[0]), (0, 0, 255), 2)
-
-    # Process remaining outliers if any
-    while len(outliers) > 0:
-        ransac.fit(outliers[:, 0].reshape(-1, 1), outliers[:, 1])
-        inlier_mask = ransac.inlier_mask_
-
-        # Extract inliers and outliers
-        inliers = outliers[inlier_mask]
-        outliers = outliers[~inlier_mask]
-
-        # Sort inliers by x-coordinate
-        inliers = inliers[np.argsort(inliers[:, 0])]
-
-        # Create lines from inliers
-        if len(inliers) > 0:
-            x1, y1 = inliers[0][0], inliers[0][1]
-            x2, y2 = inliers[-1][0], inliers[-1][1]
-            lines.append([x1, y1, x2, y2])
-            cv.line(img, (x1, 0), (x2, img.shape[0]), (0, 0, 255), 2)
-
-    return lines, img
-
 def linear_regression(img, centers=[], lines=[]):
     centers = np.array(sorted(centers, key=lambda x: x[0]))
     centers = np.array(centers)
@@ -226,15 +169,26 @@ def calculate_angle(lines):
 # Tractor guidance
 def tractor_guidance(img, lines):
     # Extract camera's mid position assuming camera is on the middle of tractor
-    pc = img.shape[1]/2
+    xc = img.shape[1]/2
+    # Assuming yc
+    yc = 350
 
-    # Extract left-most and right-most row position
-    pl = lines[0]
-    pr = lines[-1]
+    # Extract left-most, center, and right-most row position
+    xl1, yl1, xl2, yl2 = lines[0]
+    xc1, yc1, xc2, yc2 = lines[1]
+    xr1, yr1, xr2, yr2 = lines[-1]
+
+    # Calculate gradient of each lines
+    ml = (yl2-yl1)/(xl2-xl1)
+    mr = (yr2-yr1)/(xr2-xr1)
+
+    # Determine xl and xr when y = yc
+    xl = xl1+(yl1-yc)/ml
+    xr = xr1+(yr1-yc)/mr
     
     # Calculate distances from the right and left crop row to the middle
-    dl = abs(pc-pl)
-    dr = abs(pc-pr)
+    dl = xl-xc
+    dr = xc-xr
     
     # Return the control signal
     return dr-dl
