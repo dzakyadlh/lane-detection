@@ -7,7 +7,7 @@ import utils
 start_time = time.time()
 
 # Set parameters
-model_file = 'yolo_archive/models/yolov4/yolov4-obj_best.weights'
+model_file = 'yolo_archive/models/yolov4/v3/yolov4-obj_5000.weights'
 config_file = 'yolo_archive/yolov4-obj.cfg'
 conf_th = .25
 NMS_th = .25
@@ -37,6 +37,9 @@ img = cv.resize(img, (416, 416))
 
 # Run detection
 labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
+print(labels)
+print(scores)
+print(bboxes)
 # for (labelid, score, box) in zip(labels, scores, bboxes):
     # cv.rectangle(img, box, color, 1)
 
@@ -45,7 +48,7 @@ centers, img = utils.draw_centers(img, bboxes)
 
 # Run hough transform
 # img = utils.hough_transform(img, 10, 80, 100, 60)
-lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, img.shape[0]/7)
+lines, img = utils.probabilistic_hough_transform(img, 10, 5, 100, 75, 105, img.shape[1]/7)
 print(lines)
 
 # Or Linearization

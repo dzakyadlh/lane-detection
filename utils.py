@@ -30,8 +30,8 @@ def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
 def hough_transform(img, intersect, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
     hough_lines = []
     img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
-    edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
-    lines = cv.HoughLines(edges, 1, np.pi/180,intersect)
+    # edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
+    lines = cv.HoughLines(img_thresh, 1, np.pi/180,intersect)
     if lines is not None:
 
         # Extract each coordinates
