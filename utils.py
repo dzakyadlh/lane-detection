@@ -15,7 +15,7 @@ def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
             elif center_y > roi2 or center_y < roi1:
                 continue
         cv.circle(img, [center_x, center_y], 5, color, -1)
-        # cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
+        cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0),2)
         centers.append([center_x, center_y])
     return centers, img
 

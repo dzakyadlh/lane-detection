@@ -7,7 +7,7 @@ import utils
 start_time = time.time()
 
 # Set parameters
-model_file = 'yolo_archive/models/yolov4/v3/yolov4-obj_5000.weights'
+model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
 config_file = 'yolo_archive/yolov4-obj.cfg'
 conf_th = .25
 NMS_th = .25
