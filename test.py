@@ -45,15 +45,24 @@ for label, score, bbox in zip(labels, scores, bboxes):
                 (left, top - 5), cv.FONT_HERSHEY_SIMPLEX, 0.5,
                 (255, 0, 255), 2)
 
-# Draw centers
-centers, img_centers = utils.draw_centers(img, bboxes)
+# # Draw centers
+# centers, img_centers = utils.draw_centers(img.copy(), bboxes)
+
+img_centers = img.copy()
+for label, score, bbox in zip(labels, scores, bboxes):
+    x, y, w, h = bbox
+    right = round(x + w)
+    left = round(x)
+    bottom = round(y + h)
+    top = round(y)
+    cv.rectangle(img_centers, (left, top), (right, bottom), (255, 0, 255), 1)
 
 # Run Thresholding
-img_thresh = utils.thresholding(img_centers, 150, 150, 255, 255, 255, 255)
+img_thresh = utils.thresholding(img_centers.copy(), 150, 150, 255, 255, 255, 255)
 
 # Run hough transform
 hough_lines = []
-lines = cv.HoughLinesP(img_thresh, 1, np.pi/180, 10, minLineLength=5, maxLineGap=100)
+lines = cv.HoughLinesP(img_thresh, 1, np.pi/180, 10, minLineLength=5, maxLineGap=150)
 if lines is not None:
     lines = np.squeeze(lines)  # Convert lines to a 2D array
 
@@ -61,29 +70,36 @@ if lines is not None:
     lines[:, 1] = 0
     lines[:, 3] = img.shape[0]
 
+    img_hough_1 = img_centers.copy()
     for line in lines:
-        img_hough_1 = cv.line(img_centers.copy(), (line[0], line[1]), (line[2], line[3]), color, 2)
+        cv.line(img_hough_1, (line[0], line[1]), (line[2], line[3]), color, 2)
 
     # Making sure the lines are vertical
     angles = np.arctan2(lines[:, 3] - lines[:, 1], lines[:, 2] - lines[:, 0]) * 180.0 / np.pi
     mask = (angles >= 75) & (angles <= 105)
     lines = lines[mask]
 
+    img_hough_2 = img_centers.copy()
     for line in lines:
-        img_hough_2 = cv.line(img_centers.copy(), (line[0], line[1]), (line[2], line[3]), color, 2)
+        cv.line(img_hough_2, (line[0], line[1]), (line[2], line[3]), color, 2)
 
     if len(lines) > 0:
         # Sorting lines based on x1
         lines = lines[np.argsort(lines[:, 0])]
+        print(lines)
 
         # Averaging the lines
         indices = np.where(np.abs(np.diff(lines[:, 0])) >= img.shape[1]/7)[0]
+        print(indices)
         starts = np.concatenate([[0], indices + 1])
+        print(starts)
         ends = np.concatenate([indices + 1, [len(lines)]])
+        print(ends)
+        img_hough_3 = img_centers.copy()
         for start, end in zip(starts, ends):
             avg_line = np.mean(lines[start:end], axis=0).astype(int)
             hough_lines.append(avg_line)
-            img_hough_3 = cv.line(img_centers.copy(), (avg_line[0], avg_line[1]), (avg_line[2], avg_line[3]), color, 2)
+            cv.line(img_hough_3, (avg_line[0], avg_line[1]), (avg_line[2], avg_line[3]), color, 2)
 
 titles = ['Original', 'ROI Extraction', 'Paddy Detection', 'Centers', 'Thresholding', 'Hough Transform', 'Removed Horizontal', 'Averaged Hough']
 images = [img, img, img_yolo, img_centers, img_thresh, img_hough_1, img_hough_2, img_hough_3]

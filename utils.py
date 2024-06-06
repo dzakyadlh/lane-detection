@@ -71,7 +71,7 @@ def hough_transform(img, intersect, min_angle, max_angle, max_xgap, color=(0, 0,
 
 def probabilistic_hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
     hough_lines = []
-    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)  # You need to define `thresholding` function
+    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
     edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
     lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, minLineLength=min_line_length, maxLineGap=max_line_gap)
     if lines is not None:
