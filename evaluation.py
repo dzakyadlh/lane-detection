@@ -1,22 +1,21 @@
-from sklearn import metrics
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay
 
-def compute_confusion_matrix(true_labels, predictions, class_names):
-    y_true = []
-    y_pred = []
+# Provided values
+TP = 1465
+FP = 286
+FN = 105
 
-    for true, pred in zip(true_labels, predictions):
-        y_true.extend(true)
-        y_pred.extend(pred)
+# Placeholder for True Negatives (TN)
+TN = 0  # Set to zero or some other value if necessary
 
-    cm = metrics.confusion_matrix(y_true, y_pred, labels=class_names)
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[0,1])
-    cm_display.plot()
-    plt.savefig('confusion_matrix.png')
+# Create a confusion matrix array
+cm = np.array([[TP, FP], 
+               [FN, TN]])
 
-def read_true_labels(label_file):
-    true_labels = []
-    with open(label_file, 'r') as f:
-        for line in f:
-            true_labels.append(line.strip().split())
-    return true_labels
+# Plot the confusion matrix using scikit-learn
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Positive', 'Negative'])
+disp.plot(cmap='Blues')
+plt.title('Confusion Matrix')
+plt.show()

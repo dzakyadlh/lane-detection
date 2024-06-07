@@ -84,3 +84,6 @@ def detect_warp_points(cap):
 
     cap.release()
     cv.destroyAllWindows()
+
+cap = cv.VideoCapture("./assets/videos/test1.mp4")
+detect_warp_points(cap)
