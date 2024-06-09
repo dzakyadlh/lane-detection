@@ -41,10 +41,9 @@ darknet detector map data/obj.data cfg/yolov4-obj.cfg data/backup/yolov4-obj_bes
 
 darknet detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights data/test2.jpg -thresh 0.3 -ext_output data/predictions/prediction.jpg
 
-darknet detector test data/obj.data cfg/yolov4-obj.cfg data/backup/yolov4-obj_5000.weights data/test2.jpg -thresh 0.3 -ext_output data/predictions/prediction.jpg
+darknet detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.weights data/test8.jpg -thresh 0.3 -ext_output data/predictions/prediction.jpg
 
-python darknet_images.py --input data/test4.jpg --weights data/backup/yolov4-obj_5000.weights --config_file cfg/yolov4-obj.cfg --data_file data/obj.data --thresh 0.3
- --lane_detection True
+python darknet_images.py --input data/test5.jpg --weights weights/yolov4-obj_best.weights --config_file cfg/yolov4-obj.cfg --data_file data/obj.data --thresh 0.3
 
 
 Tractor sizes:
