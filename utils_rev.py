@@ -139,8 +139,7 @@ def tractor_guidance(img, lines, threshold):
     xl1, yl1, xl2, yl2 = lines[0]
     xr1, yr1, xr2, yr2 = lines[1]
 
-    # Extract the x center of both lines
-    xc = (xl2+xr2)/2
+    # Extract the x center
     center = img.shape[1] // 2 
 
     # Calculate the distance from the center to the left and right side of the image
@@ -169,7 +168,7 @@ def tractor_guidance(img, lines, threshold):
     return dl, dr, dm, guide, img
 
 # Tractor guidance
-def tractor_guidance2(img, slopes):
+def tractor_guidance2(img, slopes, threshold):
     # Extract the slopes
     ml = round(slopes[0, 0], 3)
     mr = round(slopes[1, 0], 3)
@@ -177,9 +176,14 @@ def tractor_guidance2(img, slopes):
     # Calculate the difference of slopes
     dm = round(abs(ml)-abs(mr), 3)
 
-    cv.putText(img, str(ml), (10, 400), cv.FONT_HERSHEY_COMPLEX, 1, (245, 197, 66), 2)
-    cv.putText(img, str(dm), (150, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 2)
-    cv.putText(img, str(mr), (300, 400), cv.FONT_HERSHEY_COMPLEX, 1, (245, 66, 66), 2)
+    cv.putText(img, str(ml), (10, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
+    if dm > threshold:
+        cv.putText(img, str(dm), (150, 400), cv.FONT_HERSHEY_COMPLEX, 1, (245, 197, 66), 2)
+    elif dm < -threshold:
+        cv.putText(img, str(dm), (150, 400), cv.FONT_HERSHEY_COMPLEX, 1, (168, 164, 50), 2)
+    else:
+        cv.putText(img, str(dm), (150, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 2)
+    cv.putText(img, str(mr), (300, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
     
     # Return the control
     return ml, mr, dm, img
