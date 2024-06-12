@@ -10,7 +10,7 @@ import yolov8
 start_time = time.time()
 
 # Read image
-img = cv.imread('assets/images/test15.jpg')
+img = cv.imread('assets/images/test13.jpg')
 img = cv.resize(img, (416, 416))
 
 # Run detection with yolov4
@@ -23,15 +23,11 @@ labels, scores, bboxes = yolov4.predict(img, model_file, config_file, 0.5)
 # bboxes, results = yolov8.predict(model, img)
 
 # Draw centers
-left_line, right_line, img = utils_rev.process_bboxes(img, bboxes,threshold=60)
+# left_line, right_line, img = utils_rev.process_bboxes(img, bboxes,threshold=60)
+centers, img = utils_rev.draw_centers(img, bboxes)
 
 # Run hough transform
-# lines, img = utils_rev.hough_transform(img, 10, 10, 30, 60, 120, 30)
-slopes, averaged_line, img = utils_rev.hough_transform2(img, 10, 10, 50, 70, 110, 30)
-print('averaged_line')
-print(averaged_line)
-print('slopes')
-print(slopes)
+slopes, averaged_line, img = utils_rev.hough_transform(img, 10, 10, 50, 70, 110, 30)
 
 # Tractor Guidance
 # ml, mr, dm, img = utils_rev.tractor_guidance2(img, slopes, 3)

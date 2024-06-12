@@ -2,17 +2,10 @@ import cv2 as cv
 
 def predict(img, model_path, config_path, conf_th, roi=[0,0,0,0], show=False):
     # Set parameters
-    model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
-    config_file = 'yolo_archive/yolov4-obj.cfg'
-    conf_th = .25
+    model_file = model_path
+    config_file = config_path
     NMS_th = .25
     color = (255, 0, 255)
-
-    # Read class names
-    class_name = []
-    with open('yolo_archive/obj.names', 'r') as f:
-        class_name = [cname.strip() for cname in f.readlines()]
-    # print(class_name)
 
 
     # Read network model

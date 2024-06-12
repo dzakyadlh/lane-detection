@@ -10,56 +10,21 @@ def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
     mask = cv.inRange(hsv, lower, upper)
     return mask
 
-# Function to draw circles at the specified points
-def draw_points(img, points):
-    # Round each coordinate in points
-    points = [[round(coord) for coord in point] for point in points]
-    for point in points:
-        cv.circle(img, tuple(point), 5, (255, 0, 255), -1)
-
-# Function to process bounding boxes
-def process_bboxes(img, bboxes, threshold=30):
-    # Step 1: Keep the top-left and top-right coordinates as an array
-    corners = [[[x, y], [x + w, y]] for x, y, w, h in bboxes]
-    
-    # Step 2: Sort corners based on the x-coordinate of the top-left corner
-    corners.sort(key=lambda corner: corner[0][0])
-    
-    # Step 3: Iterate through and check the distance of each x. If the distance < threshold, then its on the same line, else not.
-    left_line = []
-    right_line = []
-    
-    pivot = corners[0][0][0]
-    for corner in corners:
-        top_left, top_right = corner
-        if (abs(pivot - top_right[0]) < threshold):
-            left_line.append(top_left)
-        else:
-            right_line.append(top_right)
-    
-    # Step 4: Draw all the remaining coordinates as points using cv.circle
-    draw_points(img, left_line)
-    draw_points(img, right_line)
-    
-    # Step 5: Return left_line, right_line, and img
-    return left_line, right_line, img
-
-def lines_linearization2(img, left_line, right_line):
-    left_line = np.array(left_line)
-    right_line = np.array(right_line)
-
-    # Sorting lines based on y
-    left_line = left_line[np.argsort(left_line[:, 1])]
-    right_line = right_line[np.argsort(right_line[:, 1])]
-
-    # Calculate slopes of each lines
-    ml = (left_line[-1, 1] - left_line[0, 1]) / (left_line[-1, 0] - left_line[0, 0] if left_line[-1, 0] - left_line[0, 0] != 0 else 1)
-    mr = (right_line[-1, 1] - right_line[0, 1]) / (right_line[-1, 0] - right_line[0, 0] if right_line[-1, 0] - right_line[0, 0] != 0 else 1)
-
-    cv.line(img, (left_line[0, 0], 0), (round(left_line[0, 0]+img.shape[0]/ml), img.shape[0]), (0, 0, 255), 2)
-    cv.line(img, (right_line[0, 0], 0), (round(right_line[-1, 0]+img.shape[0]/mr), img.shape[0]), (0, 0, 255), 2)
-
-    return [left_line[0, 0], left_line[-1, 0]], [right_line[0, 0], right_line[-1, 0]], img
+# Draw center points for each bounding boxes
+def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
+    centers = []
+    for bbox in bboxes:
+        x, y, w, h, = bbox
+        center_x = round(x + w / 2)
+        center_y = round(y + h / 2)
+        if roi1!=0:
+            if center_x > roi2 or center_x < roi1:
+                continue
+            elif center_y > roi2 or center_y < roi1:
+                continue
+        cv.circle(img, [center_x, center_y], 5, color, -1)
+        centers.append([center_x, center_y])
+    return centers, img
 
 def make_coordinates(img, line_params):
     m, b = line_params
@@ -69,7 +34,7 @@ def make_coordinates(img, line_params):
     x2 = int((y2 - b) / m)
     return np.array([x1, y1, x2, y2])
 
-def hough_transform2(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, max_xgap):
+def hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, max_xgap):
     img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
     # cv.imshow('img',img_thresh)
     # cv.waitKey(0)
@@ -94,8 +59,6 @@ def hough_transform2(img, intersect, min_line_length, max_line_gap, min_angle, m
                 continue
 
             midpoint_x = (x1 + x2) / 2
-            print(line)
-            print(midpoint_x)
             if midpoint_x < center_x:
                 left_fit.append((m, b))
             else:
@@ -143,8 +106,8 @@ def tractor_guidance(img, lines, threshold):
     center = img.shape[1] // 2 
 
     # Calculate the distance from the center to the left and right side of the image
-    dl = round(center - xl2)
-    dr = round(xr2 - center)
+    dl = abs(round(center - xl1))
+    dr = abs(round(xr1 - center))
     
     # Calculate the difference of the distances
     dm = dr-dl
@@ -188,70 +151,41 @@ def tractor_guidance2(img, slopes, threshold):
     # Return the control
     return ml, mr, dm, img
 
-def hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, max_xgap, color=(0, 0, 255)):
-    img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
-    edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
-    lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, minLineLength=min_line_length, maxLineGap=max_line_gap)
-    if lines is not None:
-        lines = np.squeeze(lines)  # Convert lines to a 2D array
+# Function to draw circles at the specified points
+def draw_points(img, points):
+    # Round each coordinate in points
+    points = [[round(coord) for coord in point] for point in points]
+    for point in points:
+        cv.circle(img, tuple(point), 5, (255, 0, 255), -1)
 
-        # Making sure the lines go through y1 = 0 to y2 = max y
-        lines[:, 1] = 0
-        lines[:, 3] = img.shape[0]
+# Function to process bounding boxes
+def process_bboxes(img, bboxes, threshold=30):
+    # Keep the top-left and top-right coordinates as an array
+    corners = [[[x, y], [x + w, y]] for x, y, w, h in bboxes]
+    
+    # Sort corners based on the x-coordinate of the top-left corner
+    corners.sort(key=lambda corner: corner[0][0])
+    
+    # Iterate through and check the distance of each x. If the distance < threshold, then its on the same line, else not.
+    left_line = []
+    right_line = []
+    
+    pivot = corners[0][0][0]
+    for corner in corners:
+        top_left, top_right = corner
+        if (abs(pivot - top_right[0]) < threshold):
+            left_line.append(top_left)
+        else:
+            right_line.append(top_right)
+    
+    # Draw all the remaining coordinates as points using cv.circle
+    draw_points(img, left_line)
+    draw_points(img, right_line)
+    
+    # Return left_line, right_line, and img
+    return left_line, right_line, img
 
-        # Making sure the lines are vertical
-        angles = np.rad2deg(np.arctan2(lines[:, 3]-lines[:, 1], lines[:, 2]-lines[:, 0]))
-        for angle in angles:
-            if angle < 0:
-                angle+=180
-        print(angles)
-        mask = (angles >= min_angle) & (angles <= max_angle)
-        lines = lines[mask]
-
-        for line in lines:
-            cv.line(img, (line[0], line[1]), (line[2], line[3]), color, 2)
-
-        if len(lines) > 0:
-            # Sorting lines based on x1
-            lines = lines[np.argsort(lines[:, 0])]
-
-            # Calculating the slope of each lines
-            left_slopes = np.array([])
-            right_slopes = np.array([])
-            pivot = lines[0, 0]
-            x1_left = lines[0, 0]
-            i=0
-            for line in lines:
-                x1, y1, x2, y2 = line
-                if abs(pivot-line[0]) < max_xgap:
-                    if (x2-x1) != 0:
-                        left_slopes = np.append(left_slopes, (y2-y1)/(x2-x1))
-                    i+=1
-                else:
-                    break
-            x1_right = lines[i, 0] if i < len(lines) else x1_left
-            for j in range(i, len(lines)):
-                x1, y1, x2, y2 = lines[j]
-                if (x2-x1) != 0:
-                    right_slopes = np.append(right_slopes, (y2 - y1)/(x2 - x1))
-
-            # Calculating the average slope for each lines
-            avg_left_slope = np.mean(left_slopes)
-            avg_right_slope = np.mean(right_slopes)
-
-            print('m_left = ' + str(avg_left_slope))
-            print('m_right = ' + str(avg_right_slope))
-
-            # Drawing the lines
-            cv.line(img, (x1_left, 0), (round(x1_left+img.shape[0]/avg_left_slope), img.shape[0]), (255, 0, 0), 1)
-            cv.line(img, (x1_right, 0), (round(x1_right+img.shape[0]/avg_right_slope), img.shape[0]), (255, 0, 0), 1)
-
-    return lines, img
-
-
-# Linearization method
 def lines_linearization(img, left_line, right_line):
-
     left_line = np.array(left_line)
     right_line = np.array(right_line)
 
@@ -259,7 +193,11 @@ def lines_linearization(img, left_line, right_line):
     left_line = left_line[np.argsort(left_line[:, 1])]
     right_line = right_line[np.argsort(right_line[:, 1])]
 
-    cv.line(img, (left_line[0, 0], 0), (left_line[-1, 0], img.shape[0]), (0, 0, 255), 2)
-    cv.line(img, (right_line[0, 0], 0), (right_line[-1, 0], img.shape[0]), (0, 0, 255), 2)
+    # Calculate slopes of each lines
+    ml = (left_line[-1, 1] - left_line[0, 1]) / (left_line[-1, 0] - left_line[0, 0] if left_line[-1, 0] - left_line[0, 0] != 0 else 1)
+    mr = (right_line[-1, 1] - right_line[0, 1]) / (right_line[-1, 0] - right_line[0, 0] if right_line[-1, 0] - right_line[0, 0] != 0 else 1)
+
+    cv.line(img, (left_line[0, 0], 0), (round(left_line[0, 0]+img.shape[0]/ml), img.shape[0]), (0, 0, 255), 2)
+    cv.line(img, (right_line[0, 0], 0), (round(right_line[-1, 0]+img.shape[0]/mr), img.shape[0]), (0, 0, 255), 2)
 
     return [left_line[0, 0], left_line[-1, 0]], [right_line[0, 0], right_line[-1, 0]], img
