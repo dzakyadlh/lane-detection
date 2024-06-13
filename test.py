@@ -3,37 +3,19 @@ import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
 import time
-import utils
+import utils_rev
+import yolov4
 
 # Read images
 
-img = cv.imread('assets/images/test1.jpg')
+img = cv.imread('assets/images/test13.jpg')
 img = cv.resize(img, (416, 416))
 
-# Set parameters
-model_file = 'yolo_archive/models/yolov4/v3/yolov4-obj_5000.weights'
-config_file = 'yolo_archive/yolov4-obj.cfg'
-conf_th = .25
-NMS_th = .25
-color = (255, 0, 255)
-
-# Read class names
-class_name = []
-with open('yolo_archive/obj.names', 'r') as f:
-    class_name = [cname.strip() for cname in f.readlines()]
-
-# Read network model
-net = cv.dnn.readNetFromDarknet(config_file, model_file)
-net.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
-net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
-
-
-model = cv.dnn.DetectionModel(net)
-model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
-
-# Run detection
-labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
+# Run detection with yolov4
 img_yolo = img.copy()
+model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
+config_file = 'yolo_archive/yolov4-obj.cfg'
+labels, scores, bboxes = yolov4.predict(img_yolo, model_file, config_file, 0.5)
 for label, score, bbox in zip(labels, scores, bboxes):
     x, y, w, h = bbox
     right = round(x + w)
@@ -41,68 +23,28 @@ for label, score, bbox in zip(labels, scores, bboxes):
     bottom = round(y + h)
     top = round(y)
     cv.rectangle(img_yolo, (left, top), (right, bottom), (255, 0, 255), 1)
-    cv.putText(img_yolo, "{} [{:.2f}]".format(class_name[label], round(score, 3)),
+    cv.putText(img_yolo, "{} [{:.2f}]".format('paddy', round(score, 3)),
                 (left, top - 5), cv.FONT_HERSHEY_SIMPLEX, 0.5,
                 (255, 0, 255), 2)
 
-# # Draw centers
-# centers, img_centers = utils.draw_centers(img.copy(), bboxes)
-
+# Draw centers
 img_centers = img.copy()
-for label, score, bbox in zip(labels, scores, bboxes):
-    x, y, w, h = bbox
-    right = round(x + w)
-    left = round(x)
-    bottom = round(y + h)
-    top = round(y)
-    cv.rectangle(img_centers, (left, top), (right, bottom), (255, 0, 255), 1)
+centers, img_centers = utils_rev.draw_centers(img, bboxes)
 
 # Run Thresholding
-img_thresh = utils.thresholding(img_centers.copy(), 150, 150, 255, 255, 255, 255)
+img_thresh = utils_rev.thresholding(img_centers.copy(), 150, 150, 255, 255, 255, 255)
+
+img_edges = cv.Canny(img_thresh.copy(), 150, 255, apertureSize=3)
 
 # Run hough transform
-hough_lines = []
-lines = cv.HoughLinesP(img_thresh, 1, np.pi/180, 10, minLineLength=5, maxLineGap=150)
-if lines is not None:
-    lines = np.squeeze(lines)  # Convert lines to a 2D array
+img_hough = img.copy()
+slopes, averaged_line, img_hough = utils_rev.hough_transform(img_hough, 10, 10, 50, 70, 110, 30)
 
-    # Making sure the lines go through y1 = 0 to y2 = max y
-    lines[:, 1] = 0
-    lines[:, 3] = img.shape[0]
+img_guide = img_hough.copy()
+dl, dr, dm, guide, img_guide = utils_rev.tractor_guidance(img_guide, averaged_line, 20)
 
-    img_hough_1 = img_centers.copy()
-    for line in lines:
-        cv.line(img_hough_1, (line[0], line[1]), (line[2], line[3]), color, 2)
-
-    # Making sure the lines are vertical
-    angles = np.arctan2(lines[:, 3] - lines[:, 1], lines[:, 2] - lines[:, 0]) * 180.0 / np.pi
-    mask = (angles >= 75) & (angles <= 105)
-    lines = lines[mask]
-
-    img_hough_2 = img_centers.copy()
-    for line in lines:
-        cv.line(img_hough_2, (line[0], line[1]), (line[2], line[3]), color, 2)
-
-    if len(lines) > 0:
-        # Sorting lines based on x1
-        lines = lines[np.argsort(lines[:, 0])]
-        print(lines)
-
-        # Averaging the lines
-        indices = np.where(np.abs(np.diff(lines[:, 0])) >= img.shape[1]/7)[0]
-        print(indices)
-        starts = np.concatenate([[0], indices + 1])
-        print(starts)
-        ends = np.concatenate([indices + 1, [len(lines)]])
-        print(ends)
-        img_hough_3 = img_centers.copy()
-        for start, end in zip(starts, ends):
-            avg_line = np.mean(lines[start:end], axis=0).astype(int)
-            hough_lines.append(avg_line)
-            cv.line(img_hough_3, (avg_line[0], avg_line[1]), (avg_line[2], avg_line[3]), color, 2)
-
-titles = ['Original', 'ROI Extraction', 'Paddy Detection', 'Centers', 'Thresholding', 'Hough Transform', 'Removed Horizontal', 'Averaged Hough']
-images = [img, img, img_yolo, img_centers, img_thresh, img_hough_1, img_hough_2, img_hough_3]
+titles = ['Original', 'ROI Extraction', 'Paddy Detection', 'Centers', 'Thresholding', 'Canny', 'Hough Transform', 'Tractor Guide']
+images = [img, img, img_yolo, img_centers, img_thresh, img_edges, img_hough, img_guide]
 
 for i in range(len(images)):
     plt.subplot(2, 4, i+1)
