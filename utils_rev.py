@@ -127,9 +127,12 @@ def tractor_guidance(img, lines, threshold, show=False):
         color = (245, 197, 66)
     
     if show == True:
+        cv.line(img, (round(img.shape[1]/2), img.shape[0]), (round(img.shape[1]/2), img.shape[0]-40), (0, 0, 0), 3)
         cv.putText(img, str(dl), (10, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 2)
         cv.putText(img, str(dm), (150, 400), cv.FONT_HERSHEY_COMPLEX, 1, color, 2)
         cv.putText(img, str(dr), (300, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 2)
+        cv.imshow('img', img)
+        cv.waitKey(0)
     else:
         print(guide)
     

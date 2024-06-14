@@ -26,10 +26,11 @@ def predict(img, model_path, config_path, conf_th, roi=[0,0,0,0], show=False):
     labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
 
     if show == True:
+        img_yolo = img.copy()
         for bbox in bboxes:
             x, y, w, h = bbox
-            cv.rectangle(img, (x, y), (x+w, y+h), (255, 0, 255), 1)
-        cv.imshow('img',img)
+            cv.rectangle(img_yolo, (x, y), (x+w, y+h), (255, 0, 255), 1)
+        cv.imshow('img_yolo',img_yolo)
         cv.waitKey(0)
 
     return labels, scores, bboxes

@@ -7,10 +7,10 @@ from ultralytics import YOLO
 import yolov4
 import yolov8
 
-start_time = time.time()
+# start_time = time.time()
 
 # Read image
-img = cv.imread('assets/images/test14.jpg')
+img = cv.imread('assets/images/test15.jpg')
 img = cv.resize(img, (416, 416))
 
 # Run detection with yolov4
@@ -30,14 +30,6 @@ centers, img = utils_rev.draw_centers(img, bboxes)
 slopes, averaged_line, img = utils_rev.hough_transform(img, 10, 10, 50, 70, 110, show=True)
 
 # Tractor Guidance
-# ml, mr, dm, img = utils_rev.tractor_guidance2(img, slopes, 3)
 dl, dr, dm, guide, img = utils_rev.tractor_guidance(img, averaged_line, 20, show=True)
 
-cv.line(img, (round(img.shape[1]/2), img.shape[0]), (round(img.shape[1]/2), img.shape[0]-40), (0, 0, 0), 3)
-
-print('Runtime(s): ', round((time.time() - start_time),3))
-
-cv.imshow('img', img)
-cv.waitKey(0)
-# plt.imshow(img)
-# plt.show()
+# print('Runtime(s): ', round((time.time() - start_time),3))
