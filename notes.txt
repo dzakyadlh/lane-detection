@@ -45,6 +45,8 @@ darknet detector test data/obj.data cfg/yolov4-obj.cfg weights/yolov4-obj_best.w
 
 python darknet_images.py --input data/test5.jpg --weights weights/yolov4-obj_best.weights --config_file cfg/yolov4-obj.cfg --data_file data/obj.data --thresh 0.3
 
+python darknet_video.py --input data/finaltest.mp4 --weights weights/yolov4-obj_best.weights --config_file cfg/yolov4-obj.cfg --data_file data/obj.data --thresh 0.5
+
 
 Tractor sizes:
 wheel diameter: 40 cm

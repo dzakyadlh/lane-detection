@@ -5,117 +5,78 @@ import cv2 as cv
 # Function for thresholding the image
 def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-    lower = np.array([h_min, s_min, v_min])
-    upper = np.array([h_max, s_max, v_max])
+    lower = np.array([h_min, s_min, v_min], dtype=np.uint8)
+    upper = np.array([h_max, s_max, v_max], dtype=np.uint8)
     mask = cv.inRange(hsv, lower, upper)
     return mask
 
-# Draw center points for each bounding boxes
+# Draw center points for each bounding box
 def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
     centers = []
-    for bbox in bboxes:
-        x, y, w, h, = bbox
+    h, w = img.shape[:2]
+    for x, y, w, h in bboxes:
         center_x = round(x + w / 2)
         center_y = round(y + h / 2)
-        if roi1!=0:
-            if center_x > roi2 or center_x < roi1:
-                continue
-            elif center_y > roi2 or center_y < roi1:
-                continue
-        cv.circle(img, [center_x, center_y], 5, color, -1)
+        if roi1 != 0 and (center_x > roi2 or center_x < roi1 or center_y > roi2 or center_y < roi1):
+            continue
+        cv.circle(img, (center_x, center_y), 5, color, -1)
         centers.append([center_x, center_y])
     return centers, img
 
 def make_coordinates(img, line_params):
     m, b = line_params
     y1 = img.shape[0]
-    y2 = int(y1 * 1/3)
+    y2 = int(y1 / 3)
     x1 = int((y1 - b) / m)
     x2 = int((y2 - b) / m)
     return np.array([x1, y1, x2, y2])
 
 def hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, show=False):
     img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
-    # cv.imshow('img',img_thresh)
-    # cv.waitKey(0)
     edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
-    # cv.imshow('img',edges)
-    # cv.waitKey(0)
-    lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, np.array([]), minLineLength=min_line_length, maxLineGap=max_line_gap)
+    lines = cv.HoughLinesP(edges, 1, np.pi / 180, intersect, minLineLength=min_line_length, maxLineGap=max_line_gap)
 
     left_fit = []
     right_fit = []
-    left_inf = []
-    right_inf = []
     center_x = img.shape[1] // 2
-    for line in lines:
-        x1, y1, x2, y2 = line.reshape(4)
-        if x1 != x2:
-            m, b = np.polyfit((x1, x2), (y1, y2), 1)
-            angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
-            if angle < 0:
-                angle += 180
-            if not (min_angle <= angle <= max_angle):
-                continue
 
-            midpoint_x = (x1 + x2) / 2
-            if midpoint_x < center_x:
-                left_fit.append((m, b))
-            else:
-                right_fit.append((m, b))
-        else:
-            midpoint_x = (x1 + x2) / 2
-            if midpoint_x < center_x:
-                left_inf.append((x1, int(img.shape[0]), x2, int(img.shape[0]*1/3)))
-            else:
-                right_inf.append((x1, int(img.shape[0]), x2, int(img.shape[0]*1/3)))
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line.reshape(4)
+            if x1 != x2:
+                m, b = np.polyfit((x1, x2), (y1, y2), 1)
+                angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
+                angle = angle + 180 if angle < 0 else angle
+                if not (min_angle <= angle <= max_angle):
+                    continue
 
-    if len(left_fit) > len(left_inf):
-        left_fit_avg = np.average(left_fit, axis=0)
-        left_line = make_coordinates(img, left_fit_avg)
-    else:
-        left_line = np.array(left_inf)
-        left_line = np.average(left_line, axis=0)
-        left_fit_avg = [float('inf'), left_line[0]]
-    if len(right_fit) > len(right_inf):
-        right_fit_avg = np.average(right_fit, axis=0)
-        right_line = make_coordinates(img, right_fit_avg)
-    else:
-        right_line = np.array(right_inf)
-        right_line = np.average(right_line, axis=0)
-        right_fit_avg = [float('inf'), right_line[0]]
-    averaged = np.array([left_line, right_line])
-    slopes = np.array([left_fit_avg, right_fit_avg])
+                midpoint_x = (x1 + x2) / 2
+                (left_fit if midpoint_x < center_x else right_fit).append((m, b))
+
+    left_line = np.mean([make_coordinates(img, line) for line in left_fit], axis=0) if left_fit else None
+    right_line = np.mean([make_coordinates(img, line) for line in right_fit], axis=0) if right_fit else None
 
     line_image = np.zeros_like(img)
-    if show == True:
-        if averaged is not None:
-            for line in averaged:
-                x1, y1, x2, y2 = line.reshape(4)
-                cv.line(line_image, (round(x1), round(y1)), (round(x2), round(y2)), (0, 255, 0), 5)
+    if show and left_line is not None and right_line is not None:
+        for line in [left_line, right_line]:
+            x1, y1, x2, y2 = map(int, line)
+            cv.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 5)
+    
     result_img = cv.addWeighted(img, 0.8, line_image, 1, 1)
-    return slopes, averaged, result_img
-
+    return (np.array([left_fit, right_fit]), np.array([left_line, right_line])), result_img
 
 # Tractor guidance
 def tractor_guidance(img, lines, threshold, show=False):
-
     xl1, yl1, xl2, yl2 = lines[0]
     xr1, yr1, xr2, yr2 = lines[1]
 
-    # Extract the x center
-    center = img.shape[1] // 2 
+    center = img.shape[1] // 2
+    dl = abs(center - xl2)
+    dr = abs(xr2 - center)
+    dm = dr - dl
 
-    # Calculate the distance from the center to the left and right side of the image
-    dl = abs(round(center - xl2))
-    dr = abs(round(xr2 - center))
-    
-    # Calculate the difference of the distances
-    dm = dr-dl
-
-    # Calculate the tractor guidance
     guide = 0
-    color = 0
+    color = (0, 0, 0)
     if dm > threshold: 
         guide = -1
         color = (66, 197, 245)
@@ -126,18 +87,18 @@ def tractor_guidance(img, lines, threshold, show=False):
         guide = 0
         color = (245, 197, 66)
     
-    if show == True:
-        cv.line(img, (round(img.shape[1]/2), img.shape[0]), (round(img.shape[1]/2), img.shape[0]-40), (0, 0, 0), 3)
-        cv.putText(img, str(dl), (10, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 2)
+    if show:
+        cv.line(img, (center, img.shape[0]), (center, img.shape[0] - 40), (0, 0, 0), 3)
+        cv.putText(img, str(dl), (10, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
         cv.putText(img, str(dm), (150, 400), cv.FONT_HERSHEY_COMPLEX, 1, color, 2)
-        cv.putText(img, str(dr), (300, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0,0,0), 2)
+        cv.putText(img, str(dr), (300, 400), cv.FONT_HERSHEY_COMPLEX, 1, (0, 0, 0), 2)
         cv.imshow('img', img)
         cv.waitKey(0)
     else:
         print(guide)
     
-    # Return the control signal
     return dl, dr, dm, guide, img
+
 
 # Tractor guidance
 def tractor_guidance2(img, slopes, threshold):
