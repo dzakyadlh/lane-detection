@@ -1,69 +1,124 @@
-import math
 import numpy as np
 import cv2 as cv
 
 # Function for thresholding the image
 def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-    lower = np.array([h_min, s_min, v_min], dtype=np.uint8)
-    upper = np.array([h_max, s_max, v_max], dtype=np.uint8)
+    lower = np.array([h_min, s_min, v_min])
+    upper = np.array([h_max, s_max, v_max])
     mask = cv.inRange(hsv, lower, upper)
     return mask
 
-# Draw center points for each bounding box
+# Draw center points for each bounding boxes
 def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
     centers = []
-    h, w = img.shape[:2]
-    for x, y, w, h in bboxes:
+    for bbox in bboxes:
+        x, y, w, h, = bbox
         center_x = round(x + w / 2)
         center_y = round(y + h / 2)
-        if roi1 != 0 and (center_x > roi2 or center_x < roi1 or center_y > roi2 or center_y < roi1):
-            continue
-        cv.circle(img, (center_x, center_y), 5, color, -1)
+        if roi1!=0:
+            if center_x > roi2 or center_x < roi1:
+                continue
+            elif center_y > roi2 or center_y < roi1:
+                continue
+        cv.circle(img, [center_x, center_y], 5, color, -1)
         centers.append([center_x, center_y])
     return centers, img
 
+# Determine coordinates from slope and intercept
 def make_coordinates(img, line_params):
     m, b = line_params
     y1 = img.shape[0]
-    y2 = int(y1 / 3)
+    y2 = int(y1 * 1/3)
     x1 = int((y1 - b) / m)
     x2 = int((y2 - b) / m)
     return np.array([x1, y1, x2, y2])
 
+# Hough transformation
 def hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, max_angle, show=False):
+    # Thresholding
     img_thresh = thresholding(img, 150, 150, 255, 255, 255, 255)
+    # Canny edge detection
     edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
-    lines = cv.HoughLinesP(edges, 1, np.pi / 180, intersect, minLineLength=min_line_length, maxLineGap=max_line_gap)
+    # Hough transform line prediction
+    lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, np.array([]), minLineLength=min_line_length, maxLineGap=max_line_gap)
+
+    if lines is None:
+        print('No lines detected')
+        return None, None, img
 
     left_fit = []
     right_fit = []
+    # Handling for lines with infinite slope
+    left_inf = []
+    right_inf = []
+    # Get the center x-coordinate of the input image
     center_x = img.shape[1] // 2
 
-    if lines is not None:
-        for line in lines:
-            x1, y1, x2, y2 = line.reshape(4)
-            if x1 != x2:
-                m, b = np.polyfit((x1, x2), (y1, y2), 1)
-                angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
-                angle = angle + 180 if angle < 0 else angle
-                if not (min_angle <= angle <= max_angle):
-                    continue
+    print(lines)
 
-                midpoint_x = (x1 + x2) / 2
-                (left_fit if midpoint_x < center_x else right_fit).append((m, b))
+    for line in lines:
+        x1, y1, x2, y2 = line.reshape(4)
+        # Checking if the line has infinite slope
+        if x1 != x2:
+            # Determine the slope and intercept
+            m, b = np.polyfit((x1, x2), (y1, y2), 1)
+            # Checking if line is vertical
+            angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
+            if angle < 0:
+                angle += 180
+            if not (min_angle <= angle <= max_angle):
+                continue
 
-    left_line = np.mean([make_coordinates(img, line) for line in left_fit], axis=0) if left_fit else None
-    right_line = np.mean([make_coordinates(img, line) for line in right_fit], axis=0) if right_fit else None
+            # Determine whether line is on the left side or the right side
+            midpoint_x = (x1 + x2) / 2
+            if midpoint_x < center_x:
+                left_fit.append((m, b))
+            else:
+                right_fit.append((m, b))
+        else:
+            midpoint_x = (x1 + x2) / 2
+            if midpoint_x < center_x:
+                left_inf.append((x1, int(img.shape[0]), x2, int(img.shape[0]*1/3)))
+            else:
+                right_inf.append((x1, int(img.shape[0]), x2, int(img.shape[0]*1/3)))
 
+    # Averaging the line obtained to get the optimal line
+    if left_fit and len(left_fit) >= len(left_inf):
+        left_fit_avg = np.average(left_fit, axis=0)
+        left_line = make_coordinates(img, left_fit_avg)
+    elif left_inf:
+        left_line = np.array(left_inf)
+        left_line = np.average(left_line, axis=0)
+        left_fit_avg = [float('inf'), left_line[0]]
+    else:
+        left_line = np.array([0, img.shape[0], 0, int(img.shape[0]*1/3)])
+        left_fit_avg = [float('inf'), left_line[0]]
+
+    if right_fit and len(right_fit) >= len(right_inf):
+        right_fit_avg = np.average(right_fit, axis=0)
+        right_line = make_coordinates(img, right_fit_avg)
+    elif right_inf:
+        right_line = np.array(right_inf)
+        right_line = np.average(right_line, axis=0)
+        right_fit_avg = [float('inf'), right_line[0]]
+    else:
+        right_line = np.array([img.shape[1], img.shape[0], img.shape[1], int(img.shape[0]*1/3)])
+        right_fit_avg = [float('inf'), right_line[0]]
+
+    averaged = np.array([left_line, right_line])
+    slopes = np.array([left_fit_avg, right_fit_avg])
+
+    # Draw the line if needed
     line_image = np.zeros_like(img)
-    if show and left_line is not None and right_line is not None:
-        for line in [left_line, right_line]:
-            x1, y1, x2, y2 = map(int, line)
-            cv.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 5)
-    
+    if show:
+        if averaged is not None:
+            for line in averaged:
+                x1, y1, x2, y2 = line.reshape(4)
+                cv.line(line_image, (round(x1), round(y1)), (round(x2), round(y2)), (0, 255, 0), 5)
+
     result_img = cv.addWeighted(img, 0.8, line_image, 1, 1)
-    return (np.array([left_fit, right_fit]), np.array([left_line, right_line])), result_img
+    return slopes, averaged, result_img
 
 # Tractor guidance
 def tractor_guidance(img, lines, threshold, show=False):

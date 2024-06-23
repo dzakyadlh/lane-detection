@@ -29,7 +29,7 @@ for label, score, bbox in zip(labels, scores, bboxes):
 
 # Draw centers
 img_centers = img.copy()
-centers, img_centers = utils_rev.draw_centers(img, bboxes)
+centers, img_centers = utils_rev.draw_centers(img_centers, bboxes)
 
 # Run Thresholding
 img_thresh = utils_rev.thresholding(img_centers.copy(), 150, 150, 255, 255, 255, 255)
@@ -37,14 +37,11 @@ img_thresh = utils_rev.thresholding(img_centers.copy(), 150, 150, 255, 255, 255,
 img_edges = cv.Canny(img_thresh.copy(), 150, 255, apertureSize=3)
 
 # Run hough transform
-img_hough = img.copy()
-slopes, averaged_line, img_hough = utils_rev.hough_transform(img_hough, 10, 10, 50, 70, 110, 30)
+img_hough = img_centers.copy()
+slopes, averaged_line, img_hough = utils_rev.hough_transform(img_hough, 10, 10, 50, 70, 110, show=True)
 
-img_guide = img_hough.copy()
-dl, dr, dm, guide, img_guide = utils_rev.tractor_guidance(img_guide, averaged_line, 20)
-
-titles = ['Original', 'ROI Extraction', 'Paddy Detection', 'Centers', 'Thresholding', 'Canny', 'Hough Transform', 'Tractor Guide']
-images = [img, img, img_yolo, img_centers, img_thresh, img_edges, img_hough, img_guide]
+titles = ['Original', 'ROI Extraction', 'Paddy Detection', 'Centers', 'Thresholding', 'Canny', 'Hough Transform']
+images = [img, img, img_yolo, img_centers, img_thresh, img_edges, img_hough]
 
 for i in range(len(images)):
     plt.subplot(2, 4, i+1)

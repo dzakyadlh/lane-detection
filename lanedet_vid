@@ -1,76 +1,55 @@
-import numpy as np
 import cv2 as cv
-import matplotlib.pyplot as plt
 import time
 import utils_rev
-import supervision as sv
-from ultralytics import YOLO
 import yolov4
-import yolov8
 
-# # Function to process a single frame
-# def process_frame(frame, model_file, config_file):
-#     # Resize frame
-#     frame_resized = cv.resize(frame, (416, 416))
+# Function to process a single frame
+def process_frame(frame, model_file, config_file):
+    # Resize frame
+    frame_resized = cv.resize(frame, (416, 416))
 
-#     # Run detection with yolov4
-#     labels, scores, bboxes = yolov4.predict(frame_resized, model_file, config_file, 0.5)
+    # Run detection with yolov4
+    labels, scores, bboxes = yolov4.predict(frame_resized, model_file, config_file, 0.5)
 
-#     # Draw centers
-#     centers, frame_centers = utils_rev.draw_centers(frame_resized, bboxes)
+    # Draw centers
+    centers, frame_centers = utils_rev.draw_centers(frame_resized, bboxes)
 
-#     # Run hough transform
-#     slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, 10, 10, 50, 70, 110, show=True)
+    # Run hough transform
+    slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, 10, 10, 50, 70, 110, show=True)
 
-#     # Tractor Guidance
-#     dl, dr, dm, guide, frame_final = utils_rev.tractor_guidance(frame_hough, averaged_line, 20)
+    return frame_hough
 
-#     return frame_final
+# Take input
+cap = cv.VideoCapture('assets/videos/finaltest2.mp4')
+model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
+config_file = 'yolo_archive/yolov4-obj.cfg'
 
-# # Take input
-# cap = cv.VideoCapture('assets/videos/finaltest.mp4')
-# model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
-# config_file = 'yolo_archive/yolov4-obj.cfg'
+frame_count = 0
+start_time = time.time()
 
-# while cap.isOpened():
-#     ret, frame = cap.read()
-#     if ret:
-#         start_time = time.time()
+while cap.isOpened():
+    ret, frame = cap.read()
+    if ret:
 
-#         # Process frame
-#         frame_final = process_frame(frame, model_file, config_file)
+        # Process frame
+        frame_final = process_frame(frame, model_file, config_file)
 
-#         # Display the resulting frame
-#         cv.imshow('frame', frame_final)
+        # Display the resulting frame
+        cv.imshow('frame', frame_final)
 
-#         # Print FPS
-#         print("FPS: ", 1.0 / (time.time() - start_time))
+        # Increment frame counter
+        frame_count += 1
 
-#         if cv.waitKey(1) & 0xFF == ord('q'):
-#             break
-#     else:
-#         break
+        # Calculate FPS
+        elapsed_time = time.time() - start_time
+        fps = frame_count / elapsed_time
+        print('FPS: ' + str(fps))
 
-# # Release resources
-# cap.release()
-# cv.destroyAllWindows()
+        if cv.waitKey(1) & 0xFF == ord('q'):
+            break
+    else:
+        break
 
-VIDEO_PATH = "assets/videos/finaltest.mp4"
-
-model = YOLO("yolo_archive/models/yolov5/best.pt")
-
-video_info = sv.VideoInfo.from_video_path(VIDEO_PATH)
-
-def process_frame(frame: np.ndarray, _) -> np.ndarray:
-    results = model(frame, imgsz=1280)[0]
-    
-    detections = sv.Detections.from_ultralytics(results)
-
-    box_annotator = sv.BoxAnnotator(thickness=4, text_thickness=4, text_scale=2)
-
-    labels = [f"{model.names[class_id]} {confidence:0.2f}" for _, _, confidence, class_id, _ in detections]
-    frame = box_annotator.annotate(scene=frame, detections=detections, labels=labels)
-
-    return frame
-
-sv.process_video(source_path=VIDEO_PATH, target_path=f"result.mp4", callback=process_frame)
+# Release resources
+cap.release()
+cv.destroyAllWindows()

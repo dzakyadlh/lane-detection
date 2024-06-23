@@ -5,19 +5,16 @@ def predict(img, model_path, config_path, conf_th, roi=[0,0,0,0], show=False):
     model_file = model_path
     config_file = config_path
     NMS_th = .25
-    color = (255, 0, 255)
 
 
     # Read network model
     net = cv.dnn.readNetFromDarknet(config_file, model_file)
     net.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
-    net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)
-
-
+    net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA)
     model = cv.dnn.DetectionModel(net)
     model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
 
-    # Set Region of Interest before detection
+    # Set Region of Interest before detection if needed
     if roi != [0,0,0,0]:
         x, y, w, h = roi
         img = img[y:y+h, x:x+w]
@@ -25,6 +22,7 @@ def predict(img, model_path, config_path, conf_th, roi=[0,0,0,0], show=False):
     # Run detection
     labels, scores, bboxes = model.detect(img, conf_th, NMS_th)
 
+    # Show bounding box if needed
     if show == True:
         img_yolo = img.copy()
         for bbox in bboxes:
