@@ -2,6 +2,7 @@ import cv2 as cv
 import time
 import utils_rev
 import yolov4
+import data_to_excel
 
 # Function to process a single frame
 def process_frame(frame, model_file, config_file):
@@ -12,12 +13,14 @@ def process_frame(frame, model_file, config_file):
     labels, scores, bboxes = yolov4.predict(frame_resized, model_file, config_file, 0.5)
 
     # Draw centers
-    centers, frame_centers = utils_rev.draw_centers(frame_resized, bboxes)
+    # centers, frame_centers = utils_rev.draw_centers(frame_resized, bboxes)
+    left_centers, right_centers, frame_centers = utils_rev.obtain_centers(frame_resized, bboxes)
 
     # Run hough transform
-    slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, 10, 10, 50, 70, 110, show=True)
+    # slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, 10, 10, 50, 70, 110, show=True)
+    slopes, averaged_line, frame_hough = utils_rev.hough_transform2(frame_centers, left_centers, right_centers, 10, 10, 60, 60, 120, show=True)
 
-    return frame_hough
+    return averaged_line, slopes, frame_hough
 
 # Take input
 cap = cv.VideoCapture('assets/videos/finaltest2.mp4')
@@ -27,12 +30,28 @@ config_file = 'yolo_archive/yolov4-obj.cfg'
 frame_count = 0
 start_time = time.time()
 
+# Initialize lists to store centers and slopes
+all_lines = []
+all_slopes = []
+
 while cap.isOpened():
     ret, frame = cap.read()
     if ret:
 
         # Process frame
-        frame_final = process_frame(frame, model_file, config_file)
+        lines, slopes, frame_final = process_frame(frame, model_file, config_file)
+
+        # Store centers and slopes with frame count
+        if lines is not None:
+            all_lines.append([frame_count, lines[0][0], lines[0][2], lines[1][0], lines[1][2]])
+        else:
+            all_lines.append([frame_count, '-', '-', '-', '-'])
+        if slopes is not None:
+            all_slopes.append([frame_count, slopes[0][0], slopes[0][1]])
+            all_slopes.append([frame_count, slopes[1][0], slopes[1][1]])
+        else:
+            all_slopes.append([frame_count, '-', '-'])
+            all_slopes.append([frame_count, '-', '-'])
 
         # Display the resulting frame
         cv.imshow('frame', frame_final)
@@ -53,3 +72,5 @@ while cap.isOpened():
 # Release resources
 cap.release()
 cv.destroyAllWindows()
+
+data_to_excel.write_to_excel(all_lines, all_slopes)

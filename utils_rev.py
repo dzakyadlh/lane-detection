@@ -55,8 +55,6 @@ def hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, ma
     # Get the center x-coordinate of the input image
     center_x = img.shape[1] // 2
 
-    print(lines)
-
     for line in lines:
         x1, y1, x2, y2 = line.reshape(4)
         # Checking if the line has infinite slope
@@ -107,13 +105,15 @@ def hough_transform(img, intersect, min_line_length, max_line_gap, min_angle, ma
         right_fit_avg = [float('inf'), right_line[0]]
 
     averaged = np.array([left_line, right_line])
+    print(averaged)
     slopes = np.array([left_fit_avg, right_fit_avg])
+    print(slopes)
 
     # Draw the line if needed
     line_image = np.zeros_like(img)
     if show:
-        if averaged is not None:
-            for line in averaged:
+        for line in averaged:
+            if line is not None and 0 <= line[0] <= img.shape[1]:
                 x1, y1, x2, y2 = line.reshape(4)
                 cv.line(line_image, (round(x1), round(y1)), (round(x2), round(y2)), (0, 255, 0), 5)
 
@@ -226,3 +226,148 @@ def lines_linearization(img, left_line, right_line):
     cv.line(img, (right_line[0, 0], 0), (round(right_line[-1, 0]+img.shape[0]/mr), img.shape[0]), (0, 0, 255), 2)
 
     return [left_line[0, 0], left_line[-1, 0]], [right_line[0, 0], right_line[-1, 0]], img
+
+def obtain_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
+    centers = []
+    for bbox in bboxes:
+        x, y, w, h = bbox
+        center_x = round(x + w / 2)
+        center_y = round(y + h / 2)
+        
+        # Apply region of interest (ROI) filtering
+        if roi1 != 0:
+            if center_x > roi2 or center_x < roi1 or center_y > roi2 or center_y < roi1:
+                continue
+        
+        centers.append((center_x, center_y))
+    
+    # Sort centers by y-coordinate
+    centers.sort(key=lambda c: c[1])  # Sort by the second element (y-coordinate)
+
+    # Initialize lists for left and right centers
+    left_centers = []
+    right_centers = []
+    
+    # Iterate through sorted centers and assign them alternately to left and right
+    for i in range(0, len(centers), 2):
+        if i < len(centers) - 1:
+            if centers[i][0] < centers[i+1][0]:
+                left_centers.append(centers[i])
+                right_centers.append(centers[i+1])
+            else:
+                left_centers.append(centers[i+1])
+                right_centers.append(centers[i])
+        else:
+            # If there's an odd number of centers, the last one goes to left_centers
+            left_centers.append(centers[i])
+    
+    return left_centers, right_centers, img
+
+# Hough transformation
+def hough_transform2(img, left_centers, right_centers, intersect, min_line_length, max_line_gap, min_angle, max_angle, show=False):
+    left_fit = []
+    right_fit = []
+    # Handling for lines with infinite slope
+    left_inf = []
+    right_inf = []
+
+    img_center_left = img.copy()
+    for center in left_centers:
+        cv.circle(img_center_left, (center[0], center[1]), 5, (255, 0, 255), -1)
+        
+    # Thresholding
+    img_thresh = thresholding(img_center_left, 150, 150, 255, 255, 255, 255)
+    # Canny edge detection
+    edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
+    # Hough transform line prediction
+    lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, np.array([]), minLineLength=min_line_length, maxLineGap=max_line_gap)
+
+    if lines is None:
+        print('No lines detected')
+        return None, None, img_center_left
+    print('left')
+
+    for line in lines:
+        x1, y1, x2, y2 = line.reshape(4)
+        # Checking if the line has infinite slope
+        if x1 != x2:
+            # Determine the slope and intercept
+            m, b = np.polyfit((x1, x2), (y1, y2), 1)
+            # Checking if line is vertical
+            angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
+            if angle < 0:
+                angle += 180
+            if not (min_angle <= angle <= max_angle):
+                continue
+            left_fit.append((m,b))
+        else:
+            left_inf.append((x1, int(img.shape[0]), x2, int(img.shape[0]*1/3)))
+    
+    img_center_right = img.copy()
+    for center in right_centers:
+        cv.circle(img_center_right, (center[0], center[1]), 5, (255, 0, 255), -1)
+        
+    # Thresholding
+    img_thresh = thresholding(img_center_right, 150, 150, 255, 255, 255, 255)
+    # Canny edge detection
+    edges = cv.Canny(img_thresh, 150, 255, apertureSize=3)
+    # Hough transform line prediction
+    lines = cv.HoughLinesP(edges, 1, np.pi/180, intersect, np.array([]), minLineLength=min_line_length, maxLineGap=max_line_gap)
+
+    if lines is None:
+        print('No lines detected')
+        return None, None, img_center_right
+    print('right')
+
+    for line in lines:
+        x1, y1, x2, y2 = line.reshape(4)
+        # Checking if the line has infinite slope
+        if x1 != x2:
+            # Determine the slope and intercept
+            m, b = np.polyfit((x1, x2), (y1, y2), 1)
+            # Checking if line is vertical
+            angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
+            if angle < 0:
+                angle += 180
+            if not (min_angle <= angle <= max_angle):
+                continue
+            right_fit.append((m,b))
+        right_inf.append((x1, int(img.shape[0]), x2, int(img.shape[0]*1/3)))
+
+    # Averaging the line obtained to get the optimal line
+    if left_fit and len(left_fit) >= len(left_inf):
+        left_fit_avg = np.average(left_fit, axis=0)
+        left_line = make_coordinates(img, left_fit_avg)
+    elif left_inf:
+        left_line = np.array(left_inf)
+        left_line = np.average(left_line, axis=0)
+        left_fit_avg = [float('inf'), left_line[0]]
+    else:
+        left_line = np.array([0, img.shape[0], 0, int(img.shape[0]*1/3)])
+        left_fit_avg = [float('inf'), left_line[0]]
+
+    if right_fit and len(right_fit) >= len(right_inf):
+        right_fit_avg = np.average(right_fit, axis=0)
+        right_line = make_coordinates(img, right_fit_avg)
+    elif right_inf:
+        right_line = np.array(right_inf)
+        right_line = np.average(right_line, axis=0)
+        right_fit_avg = [float('inf'), right_line[0]]
+    else:
+        right_line = np.array([img.shape[1], img.shape[0], img.shape[1], int(img.shape[0]*1/3)])
+        right_fit_avg = [float('inf'), right_line[0]]
+
+    averaged = np.array([left_line, right_line])
+    print(averaged)
+    slopes = np.array([left_fit_avg, right_fit_avg])
+
+    # Draw the line if needed
+    line_image = np.zeros_like(img)
+    if show:
+        for line in averaged:
+            if line is not None and 0 <= line[0] <= img.shape[1]:
+                x1, y1, x2, y2 = line.reshape(4)
+                cv.line(line_image, (round(x1), round(y1)), (round(x2), round(y2)), (0, 255, 0), 5)
+
+    result_img = cv.addWeighted(img, 0.8, line_image, 1, 1)
+    return slopes, averaged, result_img

@@ -63,3 +63,5 @@ crop vertical distance: 12.5 cm
 
 From tractor and legowo:
 free lane: 50-10 = ~ 40 cm
+
+=IF(B2="inf";90;DEGREES(ATAN(B2)))
