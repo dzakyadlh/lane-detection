@@ -3,6 +3,8 @@ import time
 import utils_rev
 import yolov4
 import data_to_excel
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Function to process a single frame
 def process_frame(frame, model_file, config_file):
@@ -13,17 +15,15 @@ def process_frame(frame, model_file, config_file):
     labels, scores, bboxes = yolov4.predict(frame_resized, model_file, config_file, 0.5)
 
     # Draw centers
-    # centers, frame_centers = utils_rev.draw_centers(frame_resized, bboxes)
     left_centers, right_centers, frame_centers = utils_rev.obtain_centers(frame_resized, bboxes)
 
     # Run hough transform
-    # slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, 10, 10, 50, 70, 110, show=True)
-    slopes, averaged_line, frame_hough = utils_rev.hough_transform2(frame_centers, left_centers, right_centers, 10, 10, 60, 60, 120, show=True)
+    slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, left_centers, right_centers, 12, 10, 70, 60, 120, show=True)
 
-    return averaged_line, slopes, frame_hough
+    return left_centers, right_centers, averaged_line, slopes, frame_hough
 
 # Take input
-cap = cv.VideoCapture('assets/videos/finaltest2.mp4')
+cap = cv.VideoCapture('assets/videos/finaltest3.mp4')
 model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
 config_file = 'yolo_archive/yolov4-obj.cfg'
 
@@ -31,6 +31,8 @@ frame_count = 0
 start_time = time.time()
 
 # Initialize lists to store centers and slopes
+all_left_centers = []
+all_right_centers = []
 all_lines = []
 all_slopes = []
 
@@ -39,16 +41,19 @@ while cap.isOpened():
     if ret:
 
         # Process frame
-        lines, slopes, frame_final = process_frame(frame, model_file, config_file)
+        left_centers, right_centers, lines, slopes, frame_final = process_frame(frame, model_file, config_file)
 
         # Store centers and slopes with frame count
+        for center in left_centers:
+            all_left_centers.append([frame_count, center[0], center[1]])
+        for center in right_centers:
+            all_right_centers.append([frame_count, center[0], center[1]])
         if lines is not None:
             all_lines.append([frame_count, lines[0][0], lines[0][2], lines[1][0], lines[1][2]])
         else:
             all_lines.append([frame_count, '-', '-', '-', '-'])
         if slopes is not None:
-            all_slopes.append([frame_count, slopes[0][0], slopes[0][1]])
-            all_slopes.append([frame_count, slopes[1][0], slopes[1][1]])
+            all_slopes.append([frame_count, slopes[0][0], slopes[0][1], slopes[1][0], slopes[1][1]])
         else:
             all_slopes.append([frame_count, '-', '-'])
             all_slopes.append([frame_count, '-', '-'])
@@ -59,11 +64,6 @@ while cap.isOpened():
         # Increment frame counter
         frame_count += 1
 
-        # Calculate FPS
-        elapsed_time = time.time() - start_time
-        fps = frame_count / elapsed_time
-        print('FPS: ' + str(fps))
-
         if cv.waitKey(1) & 0xFF == ord('q'):
             break
     else:
@@ -73,4 +73,10 @@ while cap.isOpened():
 cap.release()
 cv.destroyAllWindows()
 
-data_to_excel.write_to_excel(all_lines, all_slopes)
+# Calculate FPS
+elapsed_time = time.time() - start_time
+fps = frame_count / elapsed_time
+print('FPS: ' + str(fps))
+
+# Write processed data to Excel
+data_to_excel.write_to_excel(all_left_centers, all_right_centers, all_lines, all_slopes)
