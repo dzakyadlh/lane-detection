@@ -65,3 +65,5 @@ From tractor and legowo:
 free lane: 50-10 = ~ 40 cm
 
 =IF(B2="inf";90;DEGREES(ATAN(B2)))
+
+yolov4 performance: 35 fps

@@ -1,6 +1,3 @@
-import cv2 as cv
-from ultralytics import YOLO
-
 def predict(model, img, conf=0.5):
     results = model(img, conf = conf)
     
@@ -19,17 +16,3 @@ def predict_and_detect(model, img, conf=0.5):
     results = model([img], conf = conf)
     for i, r in enumerate(results):
         r.show()
-
-
-# # Read image
-# img = cv.imread('assets/images/test17.jpg')
-# img = cv.resize(img, (640, 640))
-
-# # Load a model
-# model = YOLO("yolo_archive/models/yolov8/v1/best.pt")
-
-# # # Use the model
-# predict_and_detect(model, img)
-
-# bboxes, results = predict(model, img)
-# print(bboxes)

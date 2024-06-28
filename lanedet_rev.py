@@ -16,7 +16,12 @@ img = cv.resize(img, (416, 416))
 # Run detection with yolov4
 model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
 config_file = 'yolo_archive/yolov4-obj.cfg'
-labels, scores, bboxes = yolov4.predict(img, model_file, config_file, 0.5)
+net = cv.dnn.readNetFromDarknet(config_file, model_file)
+net.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
+net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA)
+model = cv.dnn.DetectionModel(net)
+model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
+labels, scores, bboxes = yolov4.predict(img, model, 0.5)
 
 # # Run detection with yolov8
 # model = YOLO('yolo_archive/models/yolov8/v1/best.pt')

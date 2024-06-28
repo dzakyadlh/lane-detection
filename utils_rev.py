@@ -56,8 +56,7 @@ def obtain_centers(img, bboxes, roi1=0, roi2=0):
                 left_centers.append(centers[i+1])
                 right_centers.append(centers[i])
         else:
-            # If there's an odd number of centers, the last one goes to left_centers
-            left_centers.append(centers[i])
+            break
     
     return left_centers, right_centers, img
 
@@ -70,7 +69,7 @@ def process_centers(img_center, centers, side, intersect, min_line_length, max_l
 
     # Draw centers
     for center in centers:
-        cv.circle(img_center, (center[0], center[1]), 5, (255, 0, 255), -1)
+        cv.circle(img_center, (center[0], center[1]), 7, (255, 0, 255), -1)
     
     # Thresholding
     img_thresh = thresholding(img_center, 150, 150, 255, 255, 255, 255)
@@ -94,12 +93,11 @@ def process_centers(img_center, centers, side, intersect, min_line_length, max_l
             angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
             if angle < 0:
                 angle += 180
-            if not (min_angle <= angle <= max_angle) and 0 < x1 < img_center.shape[1]:
-                continue
-            if side == 'left':
-                left_fit.append((m,b))
-            else:
-                right_fit.append((m,b))
+            if min_angle <= angle <= max_angle and 0 < x1 < img_center.shape[1]:
+                if side == 'left':
+                    left_fit.append((m,b))
+                else:
+                    right_fit.append((m,b))
         else:
             if side == 'left':
                 left_inf.append((x1, x2))
@@ -249,20 +247,3 @@ def process_bboxes(img, bboxes, threshold=30):
     
     # Return left_line, right_line, and img
     return left_line, right_line, img
-
-def lines_linearization(img, left_line, right_line):
-    left_line = np.array(left_line)
-    right_line = np.array(right_line)
-
-    # Sorting lines based on y
-    left_line = left_line[np.argsort(left_line[:, 1])]
-    right_line = right_line[np.argsort(right_line[:, 1])]
-
-    # Calculate slopes of each lines
-    ml = (left_line[-1, 1] - left_line[0, 1]) / (left_line[-1, 0] - left_line[0, 0] if left_line[-1, 0] - left_line[0, 0] != 0 else 1)
-    mr = (right_line[-1, 1] - right_line[0, 1]) / (right_line[-1, 0] - right_line[0, 0] if right_line[-1, 0] - right_line[0, 0] != 0 else 1)
-
-    cv.line(img, (left_line[0, 0], 0), (round(left_line[0, 0]+img.shape[0]/ml), img.shape[0]), (0, 0, 255), 2)
-    cv.line(img, (right_line[0, 0], 0), (round(right_line[-1, 0]+img.shape[0]/mr), img.shape[0]), (0, 0, 255), 2)
-
-    return [left_line[0, 0], left_line[-1, 0]], [right_line[0, 0], right_line[-1, 0]], img
