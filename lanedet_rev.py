@@ -10,8 +10,8 @@ import yolov8
 start_time = time.time()
 
 # Read image
-img = cv.imread('assets/images/20deg.jpg')
-img = cv.resize(img, (416, 416))
+img = cv.imread('assets/images/testyolo.jpg')
+img = cv.resize(img, (640, 640))
 
 # Run detection with yolov4
 model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
@@ -20,26 +20,26 @@ net = cv.dnn.readNetFromDarknet(config_file, model_file)
 net.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
 net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA)
 model = cv.dnn.DetectionModel(net)
-model.setInputParams(size=(416, 416), scale=1/255, swapRB=True, crop=False)
-labels, scores, bboxes = yolov4.predict(img, model, 0.5)
+model.setInputParams(size=(640, 640), scale=1/255, swapRB=True, crop=False)
+img_yolo, labels, scores, bboxes = yolov4.predict(img, model, 0.5, show=True)
+cv.imshow('img', img_yolo)
+cv.waitKey(0)
 
-# # Run detection with yolov8
-# model = YOLO('yolo_archive/models/yolov8/v1/best.pt')
-# bboxes, results = yolov8.predict(model, img)
+# # # Run detection with yolov8
+# # model = YOLO('yolo_archive/models/yolov8/v1/best.pt')
+# # bboxes, results = yolov8.predict(model, img)
 
-# Obtain centers
-left_centers, right_centers, img = utils_rev.obtain_centers(img, bboxes)
+# # Obtain centers
+# left_centers, right_centers, img = utils_rev.obtain_centers(img, bboxes)
 
-slopes, averaged_line, img = utils_rev.hough_transform(img, left_centers, right_centers, 12, 10, 70, 60, 120, show=True)
-print(slopes)
-print(averaged_line)
-# # Run hough transform
-# slopes, averaged_line, img = utils_rev.hough_transform2(img, 10, 10, 50, 60, 120, show=True)
+# slopes, averaged_line, img = utils_rev.hough_transform(img, left_centers, right_centers, 12, 10, 70, 60, 120, show=True)
+# print(slopes)
+# print(averaged_line)
 
-print('Runtime(s): ', round((time.time() - start_time),3))
-print('FPS: ', round(1/(time.time() - start_time),3))
+# print('Runtime(s): ', round((time.time() - start_time),3))
+# print('FPS: ', round(1/(time.time() - start_time),3))
 
-# cv.imshow('result', img)
-# cv.waitKey(0)
-plt.imshow(img)
-plt.show()
+# # cv.imshow('result', img)
+# # cv.waitKey(0)
+# plt.imshow(img)
+# plt.show()

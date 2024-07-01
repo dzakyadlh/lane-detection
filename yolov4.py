@@ -15,9 +15,12 @@ def predict(img, model, conf_th, roi=[0,0,0,0], show=False):
     # Show bounding box if needed
     if show == True:
         img_yolo = img.copy()
-        for bbox in bboxes:
+        for bbox, label, score in zip(bboxes, labels, scores):
             x, y, w, h = bbox
             cv.rectangle(img_yolo, (x, y), (x+w, y+h), (255, 0, 255), 1)
+            cv.putText(img_yolo, "{} [{:.2f}]".format('paddy', float(score)),
+                        (x, y - 5), cv.FONT_HERSHEY_DUPLEX, 0.5,
+                        (255, 0, 255), 1)
         return img_yolo, labels, scores, bboxes
 
     return labels, scores, bboxes

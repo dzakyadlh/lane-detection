@@ -9,22 +9,6 @@ def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
     mask = cv.inRange(hsv, lower, upper)
     return mask
 
-# Draw center points for each bounding boxes
-def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
-    centers = []
-    for bbox in bboxes:
-        x, y, w, h, = bbox
-        center_x = round(x + w / 2)
-        center_y = round(y + h / 2)
-        if roi1!=0:
-            if center_x > roi2 or center_x < roi1:
-                continue
-            elif center_y > roi2 or center_y < roi1:
-                continue
-        cv.circle(img, [center_x, center_y], 5, color, -1)
-        centers.append([center_x, center_y])
-    return centers, img
-
 def obtain_centers(img, bboxes, roi1=0, roi2=0):
     centers = []
     for bbox in bboxes:
@@ -90,7 +74,7 @@ def process_centers(img_center, centers, side, intersect, min_line_length, max_l
             m, b = np.polyfit((x1, x2), (y1, y2), 1)
 
             # Checking if line is vertical
-            angle = np.rad2deg(np.arctan2(y2 - y1, x2 - x1))
+            angle = np.rad2deg(np.arctan2(m, 1))
             if angle < 0:
                 angle += 180
             if min_angle <= angle <= max_angle and 0 < x1 < img_center.shape[1]:
@@ -99,10 +83,11 @@ def process_centers(img_center, centers, side, intersect, min_line_length, max_l
                 else:
                     right_fit.append((m,b))
         else:
-            if side == 'left':
-                left_inf.append((x1, x2))
-            else:
-                right_inf.append((x1, x2))
+            if 0 < x1 < img_center.shape[1]:
+                if side == 'left':
+                    left_inf.append((x1, x2))
+                else:
+                    right_inf.append((x1, x2))
     if side == 'left':
         return left_fit, left_inf
     else:
@@ -115,6 +100,10 @@ def make_coordinates(img, line_params):
     y2 = int(y1 * 1/3)
     x1 = int((y1 - b) / m)
     x2 = int((y2 - b) / m)
+
+    x1 = np.clip(x1, 0, img.shape[1])
+    x2 = np.clip(x2, 0, img.shape[1])
+
     return np.array([x1, y1, x2, y2])
 
 # Averaging the slopes and intercept to obtain the optimal line
@@ -247,3 +236,19 @@ def process_bboxes(img, bboxes, threshold=30):
     
     # Return left_line, right_line, and img
     return left_line, right_line, img
+
+# Draw center points for each bounding boxes
+def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
+    centers = []
+    for bbox in bboxes:
+        x, y, w, h, = bbox
+        center_x = round(x + w / 2)
+        center_y = round(y + h / 2)
+        if roi1!=0:
+            if center_x > roi2 or center_x < roi1:
+                continue
+            elif center_y > roi2 or center_y < roi1:
+                continue
+        cv.circle(img, [center_x, center_y], 5, color, -1)
+        centers.append([center_x, center_y])
+    return centers, img

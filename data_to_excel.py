@@ -85,7 +85,7 @@ def write_to_excel(left_centers, right_centers, lines, slopes):
     df_true_angles = pd.DataFrame(true_angles, columns=['frame_count', 'true_angle_left', 'true_angle_right'])
 
     # Write DataFrames to Excel
-    with pd.ExcelWriter('output5.xlsx') as writer:
+    with pd.ExcelWriter('output7.xlsx') as writer:
         df_left_centers.to_excel(writer, sheet_name='Left_Centers', index=False)
         df_right_centers.to_excel(writer, sheet_name='Right_Centers', index=False)
         df_lines.to_excel(writer, sheet_name='Lines', index=False)
