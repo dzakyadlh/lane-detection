@@ -1,13 +1,8 @@
 import cv2 as cv
 
-def predict(img, model, conf_th, roi=[0,0,0,0], show=False):
+def predict(img, model, conf_th, show=False):
     # Set parameters
-    NMS_th = .25
-
-    # Set Region of Interest before detection if needed
-    if roi != [0,0,0,0]:
-        x, y, w, h = roi
-        img = img[y:y+h, x:x+w]
+    NMS_th = .1
 
     # Run detection
     labels, scores, bboxes = model.detect(img, conf_th, NMS_th)

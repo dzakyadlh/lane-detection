@@ -9,19 +9,19 @@ def thresholding(img, h_max, h_min, v_max, v_min, s_max, s_min):
     mask = cv.inRange(hsv, lower, upper)
     return mask
 
-def obtain_centers(img, bboxes, roi1=0, roi2=0):
+def obtain_centers(img, bboxes, roi = []):
     centers = []
     for bbox in bboxes:
         x, y, w, h = bbox
         center_x = round(x + w / 2)
         center_y = round(y + h / 2)
-        
+
         # Apply region of interest (ROI) filtering
-        if roi1 != 0:
-            if center_x > roi2 or center_x < roi1 or center_y > roi2 or center_y < roi1:
-                continue
-        
-        centers.append((center_x, center_y))
+        if roi != []:
+            if roi[0] <= center_x <= roi[2] and roi[1] <= center_y <= roi[3]:
+                centers.append((center_x, center_y))
+        else:
+            centers.append((center_x, center_y))
     
     # Sort centers by y-coordinate
     centers.sort(key=lambda c: c[1])  # Sort by the second element (y-coordinate)
@@ -78,6 +78,10 @@ def process_centers(img_center, centers, side, intersect, min_line_length, max_l
             if angle < 0:
                 angle += 180
             if min_angle <= angle <= max_angle and 0 < x1 < img_center.shape[1]:
+                # if frame_count == 197:
+                #     print(angle)
+                #     print('slope: ' + str(m))
+                #     print('intercept: ' + str(b))
                 if side == 'left':
                     left_fit.append((m,b))
                 else:
@@ -94,30 +98,38 @@ def process_centers(img_center, centers, side, intersect, min_line_length, max_l
         return right_fit, right_inf
 
 # Determine coordinates from slope and intercept
-def make_coordinates(img, line_params):
-    m, b = line_params
-    y1 = img.shape[0]
-    y2 = int(y1 * 1/3)
-    x1 = int((y1 - b) / m)
-    x2 = int((y2 - b) / m)
+def make_coordinates(img, fit, min_angle, max_angle):
+    fit_avg = np.average(fit, axis=0)
+    m, b = fit_avg
+    # Checking if line is vertical
+    angle = np.rad2deg(np.arctan2(m, 1))
+    if angle < 0:
+        angle += 180
+    if min_angle <= angle <= max_angle:
+        y1 = img.shape[0]
+        y2 = int(y1 * 1/3)
+        x1 = int((y1 - b) / m)
+        x2 = int((y2 - b) / m)
+            
+        x1 = np.clip(x1, 0, img.shape[1])
+        x2 = np.clip(x2, 0, img.shape[1])
+    else:
+        fit_avg = np.array([0, 0])
+        x1, y1, x2, y2 = [0, 0, 0, 0]
 
-    x1 = np.clip(x1, 0, img.shape[1])
-    x2 = np.clip(x2, 0, img.shape[1])
-
-    return np.array([x1, y1, x2, y2])
+    return fit_avg, np.array([x1, y1, x2, y2])
 
 # Averaging the slopes and intercept to obtain the optimal line
-def process_output(img, fit, inf):
+def process_output(img, fit, inf, min_angle, max_angle):
     if fit and len(fit) > len(inf):
-        fit_avg = np.average(fit, axis=0)
-        line = make_coordinates(img, fit_avg)
+        fit_avg, line = make_coordinates(img, fit, min_angle, max_angle)
     elif inf:
         inf = np.average(inf, axis=0)
         line = np.array([inf[0], img.shape[0], inf[1], int(img.shape[0] * 1/3)])
         fit_avg = [float('inf'), line[0]]
     else:
         line = np.array([0, 0, 0, 0])
-        fit_avg = [0, 0]
+        fit_avg = np.array([0, 0])
     return line, fit_avg
 
 # Hough transformation
@@ -128,8 +140,8 @@ def hough_transform(img, left_centers, right_centers, intersect, min_line_length
     right_fit, right_inf = process_centers(img_center_right, right_centers, 'right', intersect, min_line_length, max_line_gap, min_angle, max_angle)
 
     # Averaging the line obtained to get the optimal line
-    left_line, left_fit_avg = process_output(img, left_fit, left_inf)
-    right_line, right_fit_avg = process_output(img, right_fit, right_inf)
+    left_line, left_fit_avg = process_output(img, left_fit, left_inf, min_angle, max_angle)
+    right_line, right_fit_avg = process_output(img, right_fit, right_inf, min_angle, max_angle)
 
     averaged = np.array([left_line, right_line])
     slopes = np.array([left_fit_avg, right_fit_avg])
@@ -138,7 +150,7 @@ def hough_transform(img, left_centers, right_centers, intersect, min_line_length
     line_image = np.zeros_like(img)
     if show:
         for line in averaged:
-            if 0 <= line[0] <= img.shape[1]:
+            if 0 < line[0] < img.shape[1]:
                 x1, y1, x2, y2 = line.reshape(4)
                 cv.line(line_image, (round(x1), round(y1)), (round(x2), round(y2)), (0, 255, 0), 5)
 
@@ -252,3 +264,37 @@ def draw_centers(img, bboxes, roi1=0, roi2=0, color=(255, 0, 255)):
         cv.circle(img, [center_x, center_y], 5, color, -1)
         centers.append([center_x, center_y])
     return centers, img
+
+def obtain_centers_v5(img, bboxes, roi = []):
+    centers = []
+    for bbox in bboxes:
+        x, y, w, h, conf_th, class_idx = bbox
+        center_x = x
+        center_y = y
+        # Apply region of interest (ROI) filtering
+        if roi != []:
+            if roi[0] <= center_x <= roi[2] and roi[1] <= center_y <= roi[3]:
+                centers.append((center_x, center_y))
+        else:
+            centers.append((center_x, center_y))
+    
+    # Sort centers by y-coordinate
+    centers.sort(key=lambda c: c[1])  # Sort by the second element (y-coordinate)
+
+    # Initialize lists for left and right centers
+    left_centers = []
+    right_centers = []
+    
+    # Iterate through sorted centers and assign them alternately to left and right
+    for i in range(0, len(centers), 2):
+        if i < len(centers) - 1:
+            if centers[i][0] < centers[i+1][0]:
+                left_centers.append(centers[i])
+                right_centers.append(centers[i+1])
+            else:
+                left_centers.append(centers[i+1])
+                right_centers.append(centers[i])
+        else:
+            break
+    
+    return left_centers, right_centers, img

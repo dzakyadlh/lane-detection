@@ -49,9 +49,15 @@ def calculate_true_slopes(left_centers, right_centers):
     
     for center in range(len(left_centers)):
         n_frame, xmax, ymax, xmin, ymin = left_centers[center]
-        m_left = (ymax-ymin)/(xmax-xmin)
+        if xmax != xmin:
+            m_left, b_left = np.polyfit((xmin, xmax), (ymin, ymax), 1)
+        else:
+            m_left = float('inf')
         n_frame, xmax, ymax, xmin, ymin = right_centers[center]
-        m_right = (ymax-ymin)/(xmax-xmin)
+        if xmax != xmin:
+            m_right, b_right = np.polyfit((xmin, xmax), (ymin, ymax), 1)
+        else:
+            m_right = float('inf')
         true_slopes.append([n_frame, m_left, m_right])
     return true_slopes
 
@@ -59,12 +65,18 @@ def calculate_true_angles(true_slopes):
     true_angles = []
 
     for slope in true_slopes:
-        left_angle = np.rad2deg(np.arctan2(slope[1],1))
-        if left_angle < 0:
-            left_angle += 180
-        right_angle = np.rad2deg(np.arctan2(slope[2],1))
-        if right_angle < 0:
-            right_angle += 180
+        if slope[0] != float('inf'):
+            left_angle = np.rad2deg(np.arctan2(slope[1],1))
+            if left_angle < 0:
+                left_angle += 180
+        else:
+            left_angle = 90
+        if slope[0] != float('inf'):
+            right_angle = np.rad2deg(np.arctan2(slope[2],1))
+            if right_angle < 0:
+                right_angle += 180
+        else:
+            right_angle = 90
         true_angles.append([slope[0], left_angle, right_angle])
     return true_angles
 
@@ -85,7 +97,7 @@ def write_to_excel(left_centers, right_centers, lines, slopes):
     df_true_angles = pd.DataFrame(true_angles, columns=['frame_count', 'true_angle_left', 'true_angle_right'])
 
     # Write DataFrames to Excel
-    with pd.ExcelWriter('output7.xlsx') as writer:
+    with pd.ExcelWriter('outputlast.xlsx') as writer:
         df_left_centers.to_excel(writer, sheet_name='Left_Centers', index=False)
         df_right_centers.to_excel(writer, sheet_name='Right_Centers', index=False)
         df_lines.to_excel(writer, sheet_name='Lines', index=False)

@@ -2,10 +2,6 @@ import cv2 as cv
 import time
 import utils_rev
 import yolov4
-import matplotlib.pyplot as plt
-import numpy as np
-from ultralytics import YOLO
-import yolov8
 import data_to_excel
 
 # Function to process a single frame
@@ -16,31 +12,29 @@ def process_frame(frame, model):
     # Run detection with yolov4
     labels, scores, bboxes = yolov4.predict(frame_resized, model, 0.5)
 
-    # # Run detection with yolov8
-    # bboxes, results = yolov8.predict(model, frame_resized)
-
     # Obtain centers
     left_centers, right_centers, frame_centers = utils_rev.obtain_centers(frame_resized, bboxes)
+    print(left_centers)
 
     # Run hough transform
-    slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, left_centers, right_centers, 12, 10, 70, 60, 120, show=True)
+    slopes, averaged_line, frame_hough = utils_rev.hough_transform(frame_centers, left_centers, right_centers, 10, 10, 80, 60, 120, show=True)
 
     return left_centers, right_centers, averaged_line, slopes, frame_hough
 
 # Take input
-cap = cv.VideoCapture('assets/videos/finaltest60.mp4')
-model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
-config_file = 'yolo_archive/yolov4-obj.cfg'
+cap = cv.VideoCapture('assets/videos/finaltest30.mp4')
 
 # Read network model
+model_file = 'yolo_archive/models/yolov4/v4/yolov4-obj_best.weights'
+config_file = 'yolo_archive/yolov4-obj.cfg'
 net = cv.dnn.readNetFromDarknet(config_file, model_file)
 net.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
 net.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA)
 model = cv.dnn.DetectionModel(net)
 model.setInputParams(size=(640, 640), scale=1/255, swapRB=True, crop=False)
-# model = YOLO('yolo_archive/models/yolov8/v1/best.pt')
 
-frame_count = 0
+frame_count = 1
+wait_key = 1
 start_time = time.time()
 
 # Initialize lists to store centers and slopes
@@ -72,14 +66,12 @@ while cap.isOpened():
 
         # Display the resulting frame
         cv.imshow('frame', frame_final)
-        # frame = cv.resize(frame, (640, 640))
-        # plt.imshow(frame)
-        # plt.show()
+
 
         # Increment frame counter
         frame_count += 1
 
-        if cv.waitKey(1) & 0xFF == ord('q'):
+        if cv.waitKey(wait_key) & 0xFF == ord('q'):
             break
     else:
         break
@@ -94,4 +86,4 @@ fps = frame_count / elapsed_time
 print('FPS: ' + str(fps))
 
 # Write processed data to Excel
-data_to_excel.write_to_excel(all_left_centers, all_right_centers, all_lines, all_slopes)
+# data_to_excel.write_to_excel(all_left_centers, all_right_centers, all_lines, all_slopes)
